@@ -213,6 +213,20 @@ class ReviewController(
         }
     }
 
+    @GetMapping("/review/{reviewId}/criteria")
+    fun getReviewCriteria(@PathVariable reviewId: UUID): ResponseEntity<Any> {
+        return try {
+            val criteria = reviewService.getReviewCriteria(reviewId)
+            ResponseEntity.ok(criteria)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to get review criteria: ${e.message}"))
+        }
+    }
+
 
     @PostMapping("/{reviewId}/unpublish")
     fun unpublishReview(

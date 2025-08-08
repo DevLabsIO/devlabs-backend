@@ -212,6 +212,30 @@ class ReviewService(
         )
     }
 
+    @Transactional(readOnly = true)
+    fun getReviewCriteria(reviewId: UUID): ReviewCriteriaResponse {
+        val review = reviewRepository.findById(reviewId).orElseThrow {
+            NotFoundException("Review with id $reviewId not found")
+        }
+
+        val rubrics = review.rubrics ?: throw NotFoundException("Review does not have associated rubrics")
+
+        val criteria = rubrics.criteria.map { criterion ->
+            ReviewCriterionDetail(
+                id = criterion.id ?: throw IllegalStateException("Criterion must have an ID"),
+                name = criterion.name,
+                description = criterion.description,
+                maxScore = criterion.maxScore,
+                isCommon = criterion.isCommon
+            )
+        }
+
+        return ReviewCriteriaResponse(
+            reviewId = reviewId,
+            reviewName = review.name,
+            criteria = criteria
+        )
+    }
 
     @Transactional
     fun deleteReview(reviewId: UUID, userId: String): Boolean {
@@ -352,6 +376,7 @@ class ReviewService(
             }
         }
     }
+
 
     @Transactional
      fun addCoursesToReview(review: Review, courseIds: List<UUID>, user: User) {
