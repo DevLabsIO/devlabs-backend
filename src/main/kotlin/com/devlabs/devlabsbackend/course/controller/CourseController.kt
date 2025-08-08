@@ -187,8 +187,9 @@ class CourseController(
         }
     }
 
-    @GetMapping("/student/{studentId}/courses-with-scores")
-    fun getStudentCoursesWithScores(@PathVariable studentId: String): ResponseEntity<Any> {
+    @GetMapping("/student/courses-with-scores")
+    fun getStudentCoursesWithScores(): ResponseEntity<Any> {
+        val studentId = SecurityUtils.getCurrentUserId()?:throw IllegalArgumentException("User not authenticated")
         return try {
             val coursesWithScores = courseService.getStudentActiveCoursesWithScores(studentId)
             ResponseEntity.ok(coursesWithScores)
@@ -226,7 +227,6 @@ class CourseController(
 
     @PostMapping("/my-courses")
     fun getMyActiveCourses(
-        @RequestBody request: Map<String, Any>,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
         @RequestParam(defaultValue = "name") sort_by: String,
@@ -234,7 +234,7 @@ class CourseController(
     ): ResponseEntity<Any> {
         return try {
 
-            val userId = request["userId"].toString()
+            val userId = SecurityUtils.getCurrentUserId()?: throw IllegalArgumentException("User not authenticated")
             val currentUser = userRepository.findById(userId).orElse(null)
                 ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(mapOf("error" to "User not found"))
@@ -258,7 +258,7 @@ class CourseController(
         @RequestParam(defaultValue = "asc") sort_order: String
     ): ResponseEntity<Any> {
         return try {
-            val userId = request["userId"].toString()
+            val userId = SecurityUtils.getCurrentUserId()?: throw IllegalArgumentException("User not authenticated")
             val query = request["query"]?.toString()
                 ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(mapOf("error" to "Query parameter is required"))

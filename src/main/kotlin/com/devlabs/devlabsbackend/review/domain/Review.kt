@@ -37,7 +37,6 @@ class Review (
         inverseJoinColumns = [JoinColumn(name = "course_id")]
     )
     val courses: MutableSet<Course> = mutableSetOf(),
-
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "review_batch",

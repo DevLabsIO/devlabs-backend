@@ -172,8 +172,7 @@ class ReviewController(
             val review = reviewService.getReviewById(reviewId)
 
             val canPublish = when (user.role) {
-                Role.ADMIN, Role.MANAGER -> true
-                Role.FACULTY -> review.createdBy?.id == user.id
+                Role.ADMIN, Role.MANAGER, Role.FACULTY -> true
                 else -> false
             }
 
