@@ -2,7 +2,6 @@ package com.devlabs.devlabsbackend.security.config
 
 import com.devlabs.devlabsbackend.security.utils.JwtAuthenticationEntryPoint
 import com.devlabs.devlabsbackend.security.utils.KeycloakJwtTokenConverter
-import com.devlabs.devlabsbackend.security.utils.RequestDebugFilter
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -53,7 +52,6 @@ class DevSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtA
             .exceptionHandling { ex -> 
                 ex.authenticationEntryPoint(jwtAuthenticationEntryPoint)
             }
-            .addFilterBefore(RequestDebugFilter(), UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }
@@ -108,7 +106,6 @@ class SecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtAuth
             .exceptionHandling { ex -> 
                 ex.authenticationEntryPoint(jwtAuthenticationEntryPoint)
             }
-            .addFilterBefore(RequestDebugFilter(), UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }

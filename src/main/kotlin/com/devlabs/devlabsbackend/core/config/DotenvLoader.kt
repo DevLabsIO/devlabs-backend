@@ -13,7 +13,5 @@ object DotenvLoader {
         dotenv.entries().forEach { entry ->
             System.setProperty(entry.key, entry.value)
         }
-
-        println("Loaded dotenv: .env")
     }
 }

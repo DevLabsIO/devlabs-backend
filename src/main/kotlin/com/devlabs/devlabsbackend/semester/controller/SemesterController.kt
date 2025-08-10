@@ -59,7 +59,6 @@ class SemesterController(val semesterService: SemesterService, val userService: 
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("message" to "User not authenticated"))
 
         val userGroup = rawUserGroup.trim().removePrefix("[/").removeSuffix("]")
-        println("User group after parsing: $userGroup")
 
         return try {
             when {

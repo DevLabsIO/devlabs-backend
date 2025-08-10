@@ -136,10 +136,8 @@ class CourseService(
             throw IllegalArgumentException("User is not a student")
         }
         val courses = courseRepository.findCoursesByActiveSemestersAndStudent(student)
-        println("DEBUG: Found ${courses.size} active courses for student using direct assignment")
 
         val batchCourses = courseRepository.findCoursesByActiveSemestersAndStudentThroughBatch(student)
-        println("DEBUG: Found ${batchCourses.size} active courses for student using batch assignment")
 
         val finalCourses = if (courses.isEmpty() && batchCourses.isNotEmpty()) {
             batchCourses
@@ -173,8 +171,6 @@ class CourseService(
                     }
                 }
             }
-
-            println("DEBUG: Course ${course.name} - Published Reviews: $reviewCount, Average: $averageScorePercentage%")
 
             StudentCourseWithScoresResponse(
                 id = course.id!!,

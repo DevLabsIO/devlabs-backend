@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component
 @Component
 class ProfileLogger(private val env: Environment) : ApplicationRunner {
     override fun run(args: ApplicationArguments?) {
-        val activeProfiles = env.activeProfiles
-        println("🚀 Server is starting with active profile(s): ${activeProfiles.joinToString(", ")}")
+        // Profile logging removed for production
     }
 }

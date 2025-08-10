@@ -17,8 +17,6 @@ class KeycloakJwtTokenConverter(
     private val logger by logger()
 
     override fun convert(jwt: Jwt): JwtAuthenticationToken {
-        logger.debug("Converting JWT: {}", jwt.claims.keys)
-
         val authorities = mutableSetOf<GrantedAuthority>()
 
         authorities.add(SimpleGrantedAuthority("ROLE_USER"))
@@ -31,7 +29,6 @@ class KeycloakJwtTokenConverter(
                     if (rolesList is Collection<*>) {
                         rolesList.filterIsInstance<String>().forEach { role ->
                             authorities.add(SimpleGrantedAuthority("ROLE_$role"))
-                            logger.debug("Added client role: ROLE_$role")
                         }
                     }
                 }
@@ -41,7 +38,6 @@ class KeycloakJwtTokenConverter(
             val realmRoles = realmAccess?.get("roles") as? Collection<*>
             realmRoles?.filterIsInstance<String>()?.forEach { role ->
                 authorities.add(SimpleGrantedAuthority("ROLE_$role"))
-                logger.debug("Added realm role: ROLE_$role")
             }
 
         } catch (e: Exception) {

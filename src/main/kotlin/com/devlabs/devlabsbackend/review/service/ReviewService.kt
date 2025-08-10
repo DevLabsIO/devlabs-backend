@@ -66,25 +66,20 @@ class ReviewService(
             createdBy = user
         )
         val savedReview = reviewRepository.save(review)
-        println("DEBUG: Created review ${savedReview.name} with ID ${savedReview.id}")
 
         if (!request.courseIds.isNullOrEmpty()) {
-            println("DEBUG: Adding ${request.courseIds.size} courses directly to review")
             addCoursesToReview(savedReview, request.courseIds, user)
         }
 
         if (!request.semesterIds.isNullOrEmpty()) {
-            println("DEBUG: Adding courses from ${request.semesterIds.size} semesters to review")
             addSemestersToReview(savedReview, request.semesterIds, user)
         }
 
         if (!request.projectIds.isNullOrEmpty()) {
-            println("DEBUG: Adding ${request.projectIds.size} projects to review")
             addProjectsToReview(savedReview, request.projectIds, user)
         }
 
         if (!request.batchIds.isNullOrEmpty()) {
-            println("DEBUG: Adding ${request.batchIds.size} batches to review")
             addBatchesToReview(savedReview, request.batchIds, user)
         }
 
@@ -494,10 +489,7 @@ class ReviewService(
         }
         courses.forEach { course ->
             if (!review.courses.contains(course)) {
-                println("DEBUG: Adding course ${course.name} (${course.id}) to review ${review.name} (${review.id})")
                 review.courses.add(course)
-            } else {
-                println("DEBUG: Course ${course.name} (${course.id}) already exists in review ${review.name} (${review.id}), skipping")
             }
         }
     }
@@ -632,10 +624,7 @@ class ReviewService(
                     throw ForbiddenException("Faculty can only add reviews to courses they instruct")
                 }
                 if (!review.courses.contains(course)) {
-                    println("DEBUG: Adding course ${course.name} (${course.id}) to review ${review.name} (${review.id}) via semester ${semester.name}")
                     review.courses.add(course)
-                } else {
-                    println("DEBUG: Course ${course.name} (${course.id}) already exists in review ${review.name} (${review.id}) via semester ${semester.name}, skipping")
                 }
             }
         }
@@ -758,36 +747,10 @@ class ReviewService(
 
     @Transactional(readOnly = true)
     fun checkProjectReviewAssignment(projectId: UUID): ReviewAssignmentResponse {
-        println("=== DEBUG: Starting review assignment check for project $projectId ===")
-
         val today = LocalDate.now()
         val project = projectRepository.findByIdWithRelations(projectId) ?: throw NotFoundException("Project with id $projectId not found")
 
-        println("DEBUG: Found project: ${project.title}")
-
-        println("DEBUG: Project has ${project.courses.size} courses")
-        project.courses.forEach { course ->
-            println("DEBUG: - Course: ${course.name} (ID: ${course.id})")
-        }
         val allReviews = reviewRepository.findAllWithAssociations()
-        println("DEBUG: Found ${allReviews.size} total reviews in database")
-
-        println("DEBUG: Review IDs: ${allReviews.map { it.id }}")
-
-        allReviews.forEach { review ->
-            println("DEBUG: Review '${review.name}' (ID: ${review.id}) - Initializing collections")
-            println("DEBUG: Courses count: ${review.courses.size}")
-            println("DEBUG: Projects count: ${review.projects.size}")
-            println("DEBUG: Batches count: ${review.batches.size}")
-
-            review.courses.forEach { course ->
-                println("DEBUG: - Review course: ${course.name} (ID: ${course.id})")
-            }
-
-            review.projects.forEach { proj ->
-                println("DEBUG: - Review project: ${proj.title} (ID: ${proj.id})")
-            }
-        }
 
         val foundReviews = mutableSetOf<Review>()
         var assignmentType = "NONE"
@@ -795,7 +758,6 @@ class ReviewService(
         val directReviews = allReviews.filter { review ->
             review.projects.any { it.id == project.id }
         }
-        println("DEBUG: Found ${directReviews.size} direct project reviews")
         if (directReviews.isNotEmpty()) {
             foundReviews.addAll(directReviews)
             assignmentType = "DIRECT"
@@ -807,7 +769,6 @@ class ReviewService(
                     projectCourses.any { projectCourse -> projectCourse.id == reviewCourse.id }
                 }
             }
-            println("DEBUG: Found ${courseReviews.size} course-based reviews")
             if (courseReviews.isNotEmpty()) {
                 foundReviews.addAll(courseReviews)
                 if (assignmentType == "NONE") assignmentType = "COURSE"

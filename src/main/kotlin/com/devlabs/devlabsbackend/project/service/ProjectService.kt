@@ -61,8 +61,6 @@ class ProjectService(
             )
             return projectRepository.save(project)
         } catch (e: Exception) {
-            println("Error creating project: ${e.message}")
-            e.printStackTrace()
             throw e
         }
     }
