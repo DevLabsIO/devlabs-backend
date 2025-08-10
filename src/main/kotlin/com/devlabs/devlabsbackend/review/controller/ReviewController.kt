@@ -169,7 +169,6 @@ class ReviewController(
                 NotFoundException("User with id ${request.userId} not found")
             }
             val publicationStatus = reviewService.getPublicationStatus(reviewId)
-            val review = reviewService.getReviewById(reviewId)
 
             val canPublish = when (user.role) {
                 Role.ADMIN, Role.MANAGER, Role.FACULTY -> true
@@ -313,6 +312,27 @@ class ReviewController(
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to update review: ${e.message}"))
+        }
+    }
+
+    @GetMapping("/user/{reviewId}")
+    fun getUserBasedReview(@PathVariable reviewId: UUID): ResponseEntity<Any> {
+        return try {
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+            
+            val reviewResponse = reviewService.getUserBasedReview(reviewId, userId)
+            ResponseEntity.ok(reviewResponse)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: ForbiddenException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to get user-based review: ${e.message}"))
         }
     }
 

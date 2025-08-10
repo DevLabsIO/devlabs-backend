@@ -13,7 +13,9 @@ import com.devlabs.devlabsbackend.project.domain.ProjectStatus
 import com.devlabs.devlabsbackend.project.repository.ProjectRepository
 import com.devlabs.devlabsbackend.review.domain.DTO.*
 import com.devlabs.devlabsbackend.review.domain.Review
+import com.devlabs.devlabsbackend.review.domain.ReviewCoursePublication
 import com.devlabs.devlabsbackend.review.repository.ReviewRepository
+import com.devlabs.devlabsbackend.review.repository.ReviewCoursePublicationRepository
 import com.devlabs.devlabsbackend.rubrics.repository.RubricsRepository
 import com.devlabs.devlabsbackend.semester.repository.SemesterRepository
 import com.devlabs.devlabsbackend.user.domain.Role
@@ -37,7 +39,9 @@ class ReviewService(
     private val semesterRepository: SemesterRepository,
     private val batchRepository: BatchRepository,
     private val userRepository: UserRepository,
-    private val individualScoreRepository: IndividualScoreRepository
+    private val individualScoreRepository: IndividualScoreRepository,
+    private val reviewCoursePublicationRepository: ReviewCoursePublicationRepository,
+    private val reviewPublicationHelper: ReviewPublicationHelper
 ) {
     @Transactional
     fun createReview(request: CreateReviewRequest, userId: String): Review {
@@ -172,6 +176,43 @@ class ReviewService(
         return review.toReviewResponse()
     }
 
+    @Transactional(readOnly = true)
+    fun getUserBasedReview(reviewId: UUID, userId: String): ReviewResponse {
+        val user = userRepository.findById(userId).orElseThrow {
+            NotFoundException("User with id $userId not found")
+        }
+
+        val review = reviewRepository.findById(reviewId).orElseThrow {
+            NotFoundException("Review with id $reviewId not found")
+        }
+
+        // Check if user has access to this review
+        val hasAccess = when (user.role) {
+            Role.ADMIN, Role.MANAGER -> true
+            Role.FACULTY -> {
+                // Faculty can access reviews for courses they instruct
+                review.courses.any { course -> course.instructors.contains(user) }
+            }
+            Role.STUDENT -> {
+                // Students can access reviews that are published for them
+                reviewPublicationHelper.isReviewPublishedForUser(review, user)
+            }
+        }
+
+        if (!hasAccess) {
+            throw ForbiddenException("You don't have access to this review")
+        }
+
+        // Get the base review response
+        val baseResponse = review.toReviewResponse()
+        
+        // Determine if the review is published for this specific user
+        val isPublishedForUser = reviewPublicationHelper.isReviewPublishedForUser(review, user)
+
+        // Return the same DTO structure with user-specific publication status
+        return baseResponse.copy(isPublished = isPublishedForUser)
+    }
+
     @Transactional(readOnly = true)    
     fun getReviewsForUser(userId: String, page: Int = 0, size: Int = 10, sortBy: String = "startDate", sortOrder: String = "desc"): PaginatedResponse<ReviewResponse> {
         val user = userRepository.findById(userId).orElseThrow {
@@ -276,11 +317,18 @@ class ReviewService(
             NotFoundException("Review with id $reviewId not found")
         }
 
+        val isFullyPublished = reviewPublicationHelper.isReviewFullyPublished(review)
+        val publishedCourses = reviewPublicationHelper.getPublishedCoursesForReview(review)
+        val latestPublication = if (publishedCourses.isNotEmpty()) {
+            reviewCoursePublicationRepository.findByReview(review)
+                .maxByOrNull { it.publishedAt }?.publishedAt
+        } else null
+
         return ReviewPublicationResponse(
             reviewId = review.id!!,
             reviewName = review.name,
-            isPublished = review.isPublished,
-            publishDate = review.publishedAt?.toLocalDate()
+            isPublished = isFullyPublished,
+            publishDate = latestPublication?.toLocalDate()
         )
     }
 
@@ -294,35 +342,71 @@ class ReviewService(
         val review = reviewRepository.findById(reviewId).orElseThrow {
             NotFoundException("Review with id $reviewId not found")
         }
+
         when (user.role) {
             Role.ADMIN, Role.MANAGER -> {
+                // Admin and Manager can publish all courses in the review
+                publishAllCoursesForReview(review, user)
             }
-
             Role.FACULTY -> {
-                if (review.createdBy?.id != user.id) {
-                    throw ForbiddenException("You can only publish reviews that you created")
-                }
+                // Faculty can only publish courses they instruct
+                publishFacultyCoursesForReview(review, user)
             }
-
             else -> {
                 throw ForbiddenException("You don't have permission to publish reviews")
             }
         }
 
-        if (review.isPublished) {
-            throw IllegalArgumentException("Review is already published")
-        }
-
-        review.isPublished = true
-        review.publishedAt = LocalDateTime.now()
-        val updatedReview = reviewRepository.save(review)
+        val isFullyPublished = reviewPublicationHelper.isReviewFullyPublished(review)
+        val latestPublication = reviewCoursePublicationRepository.findByReview(review)
+            .maxByOrNull { it.publishedAt }?.publishedAt
 
         return ReviewPublicationResponse(
-            reviewId = updatedReview.id!!,
-            reviewName = updatedReview.name,
-            isPublished = updatedReview.isPublished,
-            publishDate = updatedReview.publishedAt?.toLocalDate()
+            reviewId = review.id!!,
+            reviewName = review.name,
+            isPublished = isFullyPublished,
+            publishDate = latestPublication?.toLocalDate()
         )
+    }
+
+    @Transactional
+    private fun publishAllCoursesForReview(review: Review, user: User) {
+        review.courses.forEach { course ->
+            val existingPublication = reviewCoursePublicationRepository.findByReviewAndCourse(review, course)
+            if (existingPublication == null) {
+                val publication = ReviewCoursePublication(
+                    review = review,
+                    course = course,
+                    publishedBy = user,
+                    publishedAt = LocalDateTime.now()
+                )
+                reviewCoursePublicationRepository.save(publication)
+            }
+        }
+    }
+
+    @Transactional
+    private fun publishFacultyCoursesForReview(review: Review, faculty: User) {
+        val facultyCourses = review.courses.filter { course ->
+            course.instructors.contains(faculty)
+        }
+
+        if (facultyCourses.isEmpty()) {
+            throw ForbiddenException("Faculty can only publish courses they instruct")
+        }
+
+        facultyCourses.forEach { course ->
+            val existingPublication = reviewCoursePublicationRepository.findByReviewAndCourse(review, course)
+            if (existingPublication == null) {
+                val publication = ReviewCoursePublication(
+                    review = review,
+                    course = course,
+                    publishedBy = faculty,
+                    publishedAt = LocalDateTime.now()
+                )
+                reviewCoursePublicationRepository.save(publication)
+            }
+        }
     }
 
     @Transactional
@@ -337,33 +421,48 @@ class ReviewService(
 
         when (user.role) {
             Role.ADMIN, Role.MANAGER -> {
+                // Admin and Manager can unpublish all courses in the review
+                unpublishAllCoursesForReview(review)
             }
-
             Role.FACULTY -> {
-                if (review.createdBy?.id != user.id) {
-                    throw ForbiddenException("You can only unpublish reviews that you created")
-                }
+                // Faculty can only unpublish courses they instruct
+                unpublishFacultyCoursesForReview(review, user)
             }
-
             else -> {
                 throw ForbiddenException("You don't have permission to unpublish reviews")
             }
         }
 
-        if (!review.isPublished) {
-            throw IllegalArgumentException("Review is already unpublished")
-        }
-
-        review.isPublished = false
-        review.publishedAt = null
-        val updatedReview = reviewRepository.save(review)
+        val isFullyPublished = reviewPublicationHelper.isReviewFullyPublished(review)
+        val latestPublication = reviewCoursePublicationRepository.findByReview(review)
+            .maxByOrNull { it.publishedAt }?.publishedAt
 
         return ReviewPublicationResponse(
-            reviewId = updatedReview.id!!,
-            reviewName = updatedReview.name,
-            isPublished = updatedReview.isPublished,
-            publishDate = updatedReview.publishedAt?.toLocalDate()
+            reviewId = review.id!!,
+            reviewName = review.name,
+            isPublished = isFullyPublished,
+            publishDate = latestPublication?.toLocalDate()
         )
+    }
+
+    @Transactional
+    private fun unpublishAllCoursesForReview(review: Review) {
+        reviewCoursePublicationRepository.deleteByReview(review)
+    }
+
+    @Transactional
+    private fun unpublishFacultyCoursesForReview(review: Review, faculty: User) {
+        val facultyCourses = review.courses.filter { course ->
+            course.instructors.contains(faculty)
+        }
+
+        if (facultyCourses.isEmpty()) {
+            throw ForbiddenException("Faculty can only unpublish courses they instruct")
+        }
+
+        facultyCourses.forEach { course ->
+            reviewCoursePublicationRepository.deleteByReviewAndCourse(review, course)
+        }
     }
 
 
@@ -835,7 +934,7 @@ class ReviewService(
             }
 
             Role.STUDENT -> {
-                if (!review.isPublished) {
+                if (!reviewPublicationHelper.isReviewPublishedForUser(review, user)) {
                     return ReviewResultsResponse(
                         id = project.id!!,
                         title = project.title,
@@ -903,7 +1002,7 @@ class ReviewService(
             title = project.title,
             projectTitle = project.title,
             reviewName = review.name,
-            isPublished = review.isPublished ?: false,
+            isPublished = reviewPublicationHelper.isReviewPublishedForUser(review, user),
             canViewAllResults = canViewAllResults,
             results = results
         )
@@ -1025,8 +1124,7 @@ fun Review.toReviewResponse(): ReviewResponse {
         name = this.name,
         startDate = this.startDate,
         endDate = this.endDate,
-        isPublished = this.isPublished,
-        publishedAt = this.publishedAt?.toLocalDate(),
+        publishedAt = null, // No longer using global publishedAt
         createdBy = this.createdBy?.let { creator ->
             CreatedByInfo(
                 id = creator.id!!,

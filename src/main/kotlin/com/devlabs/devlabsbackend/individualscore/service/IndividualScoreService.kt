@@ -12,6 +12,7 @@ import com.devlabs.devlabsbackend.project.domain.Project
 import com.devlabs.devlabsbackend.project.repository.ProjectRepository
 import com.devlabs.devlabsbackend.review.domain.Review
 import com.devlabs.devlabsbackend.review.repository.ReviewRepository
+import com.devlabs.devlabsbackend.review.service.ReviewPublicationHelper
 import com.devlabs.devlabsbackend.rubrics.domain.Rubrics
 import com.devlabs.devlabsbackend.semester.repository.SemesterRepository
 import com.devlabs.devlabsbackend.user.domain.Role
@@ -30,7 +31,8 @@ class IndividualScoreService(
     private val criterionRepository: CriterionRepository,
     private val courseRepository: CourseRepository,
     private val batchRepository: BatchRepository,
-    private val semesterRepository: SemesterRepository
+    private val semesterRepository: SemesterRepository,
+    private val reviewPublicationHelper: ReviewPublicationHelper
 ) {
 
     fun checkScoreAccessRights(userId: String, review: Review, project: Project, participantId: String? = null) {
@@ -55,7 +57,7 @@ class IndividualScoreService(
 
         if (user.role == Role.STUDENT) {
 
-            if (!review.isPublished) {
+            if (!reviewPublicationHelper.isReviewPublishedForUser(review, user)) {
                 throw ForbiddenException("Students can only view scores for published reviews")
             }
 
@@ -145,7 +147,7 @@ class IndividualScoreService(
             teamMembers = teamMembers,
             criteria = criteria,
             existingScores = existingScores,
-            isPublished = review.isPublished ?: false
+            isPublished = reviewPublicationHelper.isReviewPublishedForCourse(review, course)
         )
     }
 
@@ -358,27 +360,27 @@ class IndividualScoreService(
     }
 
 
-}
-
-private fun checkCourseEvaluationAccess(user: User, review: Review, project: Project, course: com.devlabs.devlabsbackend.course.domain.Course) {
-    when (user.role) {
-        Role.ADMIN, Role.MANAGER -> {
-            return
-        }
-        Role.FACULTY -> {
-            if (!course.instructors.contains(user)) {
-                throw ForbiddenException("Faculty can only access evaluations for courses they teach")
+    private fun checkCourseEvaluationAccess(user: User, review: Review, project: Project, course: com.devlabs.devlabsbackend.course.domain.Course) {
+        when (user.role) {
+            Role.ADMIN, Role.MANAGER -> {
+                return
             }
-        }
-        Role.STUDENT -> {
-            if (review.isPublished != true) {
-                throw ForbiddenException("Students can only access published reviews")
+            Role.FACULTY -> {
+                if (!course.instructors.contains(user)) {
+                    throw ForbiddenException("Faculty can only access evaluations for courses they teach")
+                }
             }
+            Role.STUDENT -> {
+                if (!reviewPublicationHelper.isReviewPublishedForUser(review, user)) {
+                    throw ForbiddenException("Students can only access published reviews")
+                }
 
-            if (!project.team.members.contains(user)) {
-                throw ForbiddenException("Students can only access their own project evaluations")
+                if (!project.team.members.contains(user)) {
+                    throw ForbiddenException("Students can only access their own project evaluations")
+                }
             }
         }
     }
+
 }
 

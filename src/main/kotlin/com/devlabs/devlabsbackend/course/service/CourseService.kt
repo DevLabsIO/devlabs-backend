@@ -12,6 +12,7 @@ import com.devlabs.devlabsbackend.course.domain.DTO.CourseResponse
 import com.devlabs.devlabsbackend.course.domain.DTO.StudentCourseWithScoresResponse
 import com.devlabs.devlabsbackend.course.repository.CourseRepository
 import com.devlabs.devlabsbackend.individualscore.repository.IndividualScoreRepository
+import com.devlabs.devlabsbackend.review.service.ReviewPublicationHelper
 import com.devlabs.devlabsbackend.user.domain.DTO.UserResponse
 import com.devlabs.devlabsbackend.user.domain.Role
 import com.devlabs.devlabsbackend.user.domain.User
@@ -28,7 +29,8 @@ class CourseService(
     private val courseRepository: CourseRepository,
     private val userRepository: UserRepository,
     private val batchRepository: BatchRepository,
-    private val individualScoreRepository: IndividualScoreRepository
+    private val individualScoreRepository: IndividualScoreRepository,
+    private val reviewPublicationHelper: ReviewPublicationHelper
 ) {
 
     @Transactional(readOnly = true)
@@ -148,7 +150,7 @@ class CourseService(
             val allReviews = individualScoreRepository.findDistinctReviewsByParticipantAndCourse(student, course)
             
             val publishedReviews = allReviews.filter { review -> 
-                review.isPublished == true 
+                reviewPublicationHelper.isReviewPublishedForUser(review, student)
             }
             
             val reviewCount = publishedReviews.size
@@ -209,7 +211,7 @@ class CourseService(
         val allReviews = individualScoreRepository.findDistinctReviewsByParticipantAndCourse(student, course)
         
         val publishedReviews = allReviews.filter { review -> 
-            review.isPublished == true 
+            reviewPublicationHelper.isReviewPublishedForUser(review, student)
         }
 
         if (publishedReviews.isEmpty()) {

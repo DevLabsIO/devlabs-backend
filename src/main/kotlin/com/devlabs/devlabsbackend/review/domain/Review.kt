@@ -20,12 +20,6 @@ class Review (
     var startDate: LocalDate,
     var endDate: LocalDate,
     
-    @Column(name = "is_published")
-    var isPublished: Boolean = false,
-    
-    @Column(name = "published_at")
-    var publishedAt: LocalDateTime? = null,
-    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_id")
     var createdBy: User? = null,
