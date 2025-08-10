@@ -240,7 +240,11 @@ class ReviewService(
             }
         }
 
-        val reviewResponses = reviewsPage.content.map { it.toReviewResponse() }
+        val reviewResponses = reviewsPage.content.map { review ->
+            val baseResponse = review.toReviewResponse()
+            val isPublishedForUser = reviewPublicationHelper.isReviewPublishedForUser(review, user)
+            baseResponse.copy(isPublished = isPublishedForUser)
+        }
 
         return PaginatedResponse(
             data = reviewResponses,
@@ -738,7 +742,11 @@ class ReviewService(
             .take(size)
 
         return PaginatedResponse(
-            data = paginatedReviews.map { it.toReviewResponse() },
+            data = paginatedReviews.map { review ->
+                val baseResponse = review.toReviewResponse()
+                val isPublishedForUser = reviewPublicationHelper.isReviewPublishedForUser(review, user)
+                baseResponse.copy(isPublished = isPublishedForUser)
+            },
             pagination = PaginationInfo(
                 current_page = page,
                 per_page = size,
@@ -1178,7 +1186,8 @@ fun Review.toReviewResponse(): ReviewResponse {
                         isCommon = criterion.isCommon
                     )
                 }            )
-        } ?: throw IllegalStateException("Review must have rubrics")
+        } ?: throw IllegalStateException("Review must have rubrics"),
+        isPublished = null // Default value, will be overridden with user-specific data
     )
 }
 

@@ -5,6 +5,7 @@ import com.devlabs.devlabsbackend.review.domain.Review
 import com.devlabs.devlabsbackend.review.domain.ReviewCoursePublication
 import com.devlabs.devlabsbackend.user.domain.User
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.data.rest.core.annotation.RepositoryRestResource
@@ -22,9 +23,11 @@ interface ReviewCoursePublicationRepository : JpaRepository<ReviewCoursePublicat
     @Query("SELECT rcp.course FROM ReviewCoursePublication rcp WHERE rcp.review = :review")
     fun findPublishedCoursesByReview(@Param("review") review: Review): List<Course>
     
+    @Modifying
     @Query("DELETE FROM ReviewCoursePublication rcp WHERE rcp.review = :review")
     fun deleteByReview(@Param("review") review: Review)
     
+    @Modifying
     @Query("DELETE FROM ReviewCoursePublication rcp WHERE rcp.review = :review AND rcp.course = :course")
     fun deleteByReviewAndCourse(@Param("review") review: Review, @Param("course") course: Course)
 }
