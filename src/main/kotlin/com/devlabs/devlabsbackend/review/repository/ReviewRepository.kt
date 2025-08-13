@@ -62,4 +62,16 @@ interface ReviewRepository: JpaRepository<Review, UUID> {
         WHERE r.id = :reviewId
     """)
     fun findByIdWithRelations(@Param("reviewId") reviewId: UUID): Review?
+    
+    fun findByCoursesInAndStartDateAfter(courses: List<Course>, date: LocalDate): List<Review>
+    
+    fun findByCoursesInAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+        courses: List<Course>, 
+        startDate: LocalDate, 
+        endDate: LocalDate
+    ): List<Review>
+    
+    fun findByCoursesInAndEndDateBefore(courses: List<Course>, date: LocalDate): List<Review>
+    
+    fun findByCoursesIn(courses: List<Course>): List<Review>
 }

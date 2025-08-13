@@ -37,4 +37,6 @@ interface BatchRepository : JpaRepository<Batch, UUID>{
 
     @Query("SELECT b FROM Batch b JOIN b.students s WHERE b.isActive = true AND s.id = :studentId")
     fun findByIsActiveTrueAndStudentsId(@Param("studentId") studentId: String): List<Batch>
+    
+    fun countByIsActive(isActive: Boolean): Long
 }

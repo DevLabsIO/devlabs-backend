@@ -26,4 +26,8 @@ interface UserRepository : JpaRepository<User, String> {
     fun findByRolePaged(@Param("role") role: Role, pageable: Pageable): Page<User>
 
     override fun findAll(pageable: Pageable): Page<User>
+    
+    fun countByRole(role: Role): Long
+    
+    fun findTop5ByOrderByCreatedAtDesc(): List<User>
 }

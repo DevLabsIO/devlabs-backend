@@ -1,6 +1,7 @@
 package com.devlabs.devlabsbackend.course.repository
 
 import com.devlabs.devlabsbackend.course.domain.Course
+import com.devlabs.devlabsbackend.semester.domain.Semester
 import com.devlabs.devlabsbackend.user.domain.User
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -64,4 +65,11 @@ interface CourseRepository : JpaRepository<Course, UUID> {
     
     @Query("SELECT c FROM Course c LEFT JOIN FETCH c.students LEFT JOIN FETCH c.instructors WHERE c.id = :courseId")
     fun findByIdWithStudentsAndInstructors(@Param("courseId") courseId: UUID): Course?
+    
+    @Query("SELECT COUNT(c) FROM Course c WHERE c.semester.isActive = true")
+    fun countByActiveSemesters(): Long
+    
+    fun findBySemesterIn(semesters: List<Semester>): List<Course>
+    
+    fun findByInstructorsContaining(instructor: User): List<Course>
 }

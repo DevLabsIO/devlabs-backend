@@ -194,4 +194,13 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         ORDER BY p.updatedAt DESC
     """)
     fun searchCompletedProjectsByStudentWithRelations(@Param("student") student: com.devlabs.devlabsbackend.user.domain.User, @Param("query") query: String, pageable: Pageable): Page<Project>
+    
+    @Query("SELECT p FROM Project p JOIN p.team t JOIN t.members m WHERE m = :user AND p.status IN :statuses")
+    fun findByTeamMembersContainingAndStatusIn(@Param("user") user: com.devlabs.devlabsbackend.user.domain.User, @Param("statuses") statuses: List<ProjectStatus>): List<Project>
+    
+    @Query("SELECT DISTINCT p FROM Project p JOIN p.courses c JOIN c.instructors i WHERE i.id = :facultyId")
+    fun findProjectsByFaculty(@Param("facultyId") facultyId: String): List<Project>
+    
+    @Query("SELECT DISTINCT p FROM Project p JOIN p.courses c WHERE c IN :courses")
+    fun findByCoursesIn(@Param("courses") courses: List<Course>): List<Project>
 }

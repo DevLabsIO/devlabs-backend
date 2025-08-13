@@ -1,6 +1,7 @@
 package com.devlabs.devlabsbackend.semester.repository
 
 import com.devlabs.devlabsbackend.semester.domain.Semester
+import com.devlabs.devlabsbackend.user.domain.User
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
@@ -32,4 +33,8 @@ interface SemesterRepository : JpaRepository<Semester, UUID> {
 
     @Query("SELECT s FROM Semester s LEFT JOIN FETCH s.courses WHERE s.id = :semesterId")
     fun findByIdWithCourses(@Param("semesterId") semesterId: UUID): Semester?
+    
+    fun countByIsActive(isActive: Boolean): Long
+    
+    fun findByManagersContaining(manager: User): List<Semester>
 }

@@ -30,4 +30,7 @@ interface ReviewCoursePublicationRepository : JpaRepository<ReviewCoursePublicat
     @Modifying
     @Query("DELETE FROM ReviewCoursePublication rcp WHERE rcp.review = :review AND rcp.course = :course")
     fun deleteByReviewAndCourse(@Param("review") review: Review, @Param("course") course: Course)
+    
+    @Query("SELECT rcp FROM ReviewCoursePublication rcp WHERE rcp.course IN :courses ORDER BY rcp.publishedAt DESC")
+    fun findRecentPublicationsByCourses(@Param("courses") courses: List<Course>): List<ReviewCoursePublication>
 }
