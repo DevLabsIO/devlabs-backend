@@ -1,6 +1,6 @@
 package com.devlabs.devlabsbackend.security.utils
 
-import com.devlabs.devlabsbackend.common.logging.logger
+import com.devlabs.devlabsbackend.core.logging.logger
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse

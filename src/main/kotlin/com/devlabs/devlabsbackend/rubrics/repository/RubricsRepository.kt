@@ -1,39 +1,102 @@
 package com.devlabs.devlabsbackend.rubrics.repository
 
 import com.devlabs.devlabsbackend.rubrics.domain.Rubrics
-import com.devlabs.devlabsbackend.user.domain.User
+import com.devlabs.devlabsbackend.rubrics.domain.dto.RubricsListProjection
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-import org.springframework.data.rest.core.annotation.RepositoryRestResource
-import org.springframework.data.rest.core.annotation.RestResource
 import java.util.*
 
-@RepositoryRestResource(path = "rubrics")
-interface RubricsRepository: JpaRepository<Rubrics, UUID>{
-    @RestResource(exported = false)
-    fun findByCreatedBy(createdBy: User): List<Rubrics>
+interface RubricsRepository : JpaRepository<Rubrics, UUID> {
     
-    @RestResource(path = "findByCreatedBy")
-    fun findByCreatedBy(createdBy: User, pageable: Pageable): Page<Rubrics>
-    @RestResource(exported = false)
-    fun findByIsSharedTrue(): List<Rubrics>
+    @Query("""
+        SELECT r.id as id,
+               r.name as name,
+               r.createdBy.id as createdById,
+               r.createdBy.name as createdByName,
+               r.createdBy.role as createdByRole,
+               r.createdAt as createdAt,
+               r.isShared as isShared
+        FROM Rubrics r
+    """)
+    fun findAllProjected(pageable: Pageable): Page<RubricsListProjection>
     
-    @RestResource(path = "findByIsSharedTrue")
-    fun findByIsSharedTrue(pageable: Pageable): Page<Rubrics>
+    @Query("""
+        SELECT r.id as id,
+               r.name as name,
+               r.createdBy.id as createdById,
+               r.createdBy.name as createdByName,
+               r.createdBy.role as createdByRole,
+               r.createdAt as createdAt,
+               r.isShared as isShared
+        FROM Rubrics r
+        WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+    """)
+    fun searchProjected(
+        @Param("searchTerm") searchTerm: String,
+        pageable: Pageable
+    ): Page<RubricsListProjection>
     
-    @Query("SELECT r FROM Rubrics r WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%'))")
-    fun findByNameContainingIgnoreCase(@Param("query") query: String, pageable: Pageable): Page<Rubrics>
+    @Query("""
+        SELECT r.id as id,
+               r.name as name,
+               r.createdBy.id as createdById,
+               r.createdBy.name as createdByName,
+               r.createdBy.role as createdByRole,
+               r.createdAt as createdAt,
+               r.isShared as isShared
+        FROM Rubrics r
+        WHERE r.createdBy.id = :userId
+    """)
+    fun findByCreatedByProjected(
+        @Param("userId") userId: String,
+        pageable: Pageable
+    ): Page<RubricsListProjection>
     
-    @Query("SELECT r FROM Rubrics r WHERE r.createdBy = :createdBy AND LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%'))")
-    fun findByCreatedByAndNameContainingIgnoreCase(@Param("createdBy") createdBy: User, @Param("query") query: String, pageable: Pageable): Page<Rubrics>
+    @Query("""
+        SELECT r.id as id,
+               r.name as name,
+               r.createdBy.id as createdById,
+               r.createdBy.name as createdByName,
+               r.createdBy.role as createdByRole,
+               r.createdAt as createdAt,
+               r.isShared as isShared
+        FROM Rubrics r
+        WHERE r.isShared = true
+    """)
+    fun findBySharedProjected(pageable: Pageable): Page<RubricsListProjection>
     
     @Query("""
         SELECT DISTINCT r FROM Rubrics r 
-        LEFT JOIN FETCH r.criteria
-        WHERE r.id = :rubricsId
+        LEFT JOIN FETCH r.createdBy 
+        LEFT JOIN FETCH r.criteria 
+        WHERE r.id = :id
     """)
-    fun findByIdWithCriteria(@Param("rubricsId") rubricsId: UUID): Rubrics?
+    fun findByIdWithDetails(@Param("id") id: UUID): Rubrics?
+    
+    @Query("""
+        SELECT DISTINCT r FROM Rubrics r 
+        LEFT JOIN FETCH r.createdBy 
+        LEFT JOIN FETCH r.criteria 
+        WHERE r.createdBy.id = :userId
+    """)
+    fun findByCreatedByWithDetails(@Param("userId") userId: String): List<Rubrics>
+    
+    @Query("""
+        SELECT DISTINCT r FROM Rubrics r 
+        LEFT JOIN FETCH r.createdBy 
+        LEFT JOIN FETCH r.criteria 
+        WHERE r.isShared = true
+    """)
+    fun findByIsSharedTrueWithDetails(): List<Rubrics>
+    
+    @Query("""
+        SELECT DISTINCT r FROM Rubrics r 
+        LEFT JOIN FETCH r.createdBy 
+        LEFT JOIN FETCH r.criteria 
+        ORDER BY r.name
+    """)
+    fun findAllWithCriteria(): List<Rubrics>
 }

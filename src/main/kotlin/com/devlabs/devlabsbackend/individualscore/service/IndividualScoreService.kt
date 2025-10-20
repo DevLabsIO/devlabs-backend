@@ -1,11 +1,14 @@
 package com.devlabs.devlabsbackend.individualscore.service
 
+import com.devlabs.devlabsbackend.batch.domain.Batch
 import com.devlabs.devlabsbackend.batch.repository.BatchRepository
+import com.devlabs.devlabsbackend.core.config.CacheConfig
 import com.devlabs.devlabsbackend.core.exception.ForbiddenException
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
+import com.devlabs.devlabsbackend.course.domain.Course
 import com.devlabs.devlabsbackend.course.repository.CourseRepository
 import com.devlabs.devlabsbackend.criterion.repository.CriterionRepository
-import com.devlabs.devlabsbackend.individualscore.domain.DTO.*
+import com.devlabs.devlabsbackend.individualscore.domain.dto.*
 import com.devlabs.devlabsbackend.individualscore.domain.IndividualScore
 import com.devlabs.devlabsbackend.individualscore.repository.IndividualScoreRepository
 import com.devlabs.devlabsbackend.project.domain.Project
@@ -13,11 +16,13 @@ import com.devlabs.devlabsbackend.project.repository.ProjectRepository
 import com.devlabs.devlabsbackend.review.domain.Review
 import com.devlabs.devlabsbackend.review.repository.ReviewRepository
 import com.devlabs.devlabsbackend.review.service.ReviewPublicationHelper
-import com.devlabs.devlabsbackend.rubrics.domain.Rubrics
 import com.devlabs.devlabsbackend.semester.repository.SemesterRepository
 import com.devlabs.devlabsbackend.user.domain.Role
 import com.devlabs.devlabsbackend.user.domain.User
 import com.devlabs.devlabsbackend.user.repository.UserRepository
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
+import org.springframework.cache.annotation.Caching
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
@@ -37,7 +42,7 @@ class IndividualScoreService(
 
     fun checkScoreAccessRights(userId: String, review: Review, project: Project, participantId: String? = null) {
         val user = userRepository.findById(userId).orElseThrow {
-            NotFoundException("User with id $userId not found")
+            NotFoundException("User with id \$userId not found")
         }
 
         if (user.role == Role.ADMIN || user.role == Role.MANAGER) {
@@ -56,12 +61,11 @@ class IndividualScoreService(
         }
 
         if (user.role == Role.STUDENT) {
-
             if (!reviewPublicationHelper.isReviewPublishedForUser(review, user)) {
                 throw ForbiddenException("Students can only view scores for published reviews")
             }
 
-            if (participantId != null && participantId !=  user.id) {
+            if (participantId != null && participantId != user.id) {
                 throw ForbiddenException("Students can only view their own scores")
             }
 
@@ -75,19 +79,22 @@ class IndividualScoreService(
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(
+        value = ["individual-scores"],
+        key = "'course-eval-' + #reviewId + '-' + #projectId + '-' + #courseId + '-' + #userId"
+    )
     fun getCourseEvaluationData(reviewId: UUID, projectId: UUID, courseId: UUID, userId: String): CourseEvaluationData {
         val user = userRepository.findById(userId).orElseThrow {
-            NotFoundException("User with id $userId not found")
+            NotFoundException("User with id \$userId not found")
         }
 
-        val review = reviewRepository.findById(reviewId).orElseThrow {
-            NotFoundException("Review with id $reviewId not found")
-        }
+        val review = reviewRepository.findByIdWithRubrics(reviewId)
+            ?: throw NotFoundException("Review with id \$reviewId not found")
 
-        val project = projectRepository.findByIdWithRelations(projectId) ?: throw NotFoundException("Project with id $projectId not found")
+        val project = projectRepository.findByIdWithRelations(projectId) ?: throw NotFoundException("Project with id \$projectId not found")
 
         val course = courseRepository.findById(courseId).orElseThrow {
-            NotFoundException("Course with id $courseId not found")
+            NotFoundException("Course with id \$courseId not found")
         }
 
         if (!isProjectAssociatedWithReview(review, project)) {
@@ -106,9 +113,10 @@ class IndividualScoreService(
                 name = member.name,
                 email = member.email,
                 role = member.role.name
-            )        
-            }        
-            val criteria = review.rubrics?.criteria?.map { criterion ->
+            )
+        }
+
+        val criteria = review.rubrics?.criteria?.map { criterion ->
             CriterionInfo(
                 id = criterion.id!!,
                 name = criterion.name,
@@ -152,18 +160,26 @@ class IndividualScoreService(
     }
 
     @Transactional
+    @Caching(
+        evict = [
+            CacheEvict(value = ["individual-scores"], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSE_DETAIL_CACHE, CacheConfig.COURSE_PERFORMANCE_CACHE], allEntries = true),
+            CacheEvict(value = ["review-detail"], allEntries = true),
+            CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_USER_CACHE], allEntries = true)
+        ]
+    )
     fun submitCourseScores(request: SubmitCourseScoreRequest, submitterId: String): List<IndividualScore> {
         val submitter = userRepository.findById(submitterId).orElseThrow {
-            NotFoundException("User with id $submitterId not found")
+            NotFoundException("User with id \$submitterId not found")
         }
 
-        val review = reviewRepository.findById(request.reviewId).orElseThrow {
-            NotFoundException("Review with id ${request.reviewId} not found")
-        }
+        val review = reviewRepository.findByIdWithRubrics(request.reviewId)
+            ?: throw NotFoundException("Review with id \${request.reviewId} not found")
 
-        val project = projectRepository.findByIdWithRelations(request.projectId) ?: throw NotFoundException("Project with id ${request.projectId} not found")
+        val project = projectRepository.findByIdWithRelations(request.projectId) ?: throw NotFoundException("Project with id \${request.projectId} not found")
         val course = courseRepository.findById(request.courseId).orElseThrow {
-            NotFoundException("Course with id ${request.courseId} not found")
+            NotFoundException("Course with id \${request.courseId} not found")
         }
 
         if (!isProjectAssociatedWithReview(review, project)) {
@@ -190,21 +206,21 @@ class IndividualScoreService(
 
         request.scores.forEach { participantScores ->
             val participant = userRepository.findById(participantScores.participantId).orElseThrow {
-                NotFoundException("Participant with id ${participantScores.participantId} not found")
+                NotFoundException("Participant with id \${participantScores.participantId} not found")
             }
 
             if (!project.team.members.contains(participant)) {
-                throw IllegalArgumentException("Participant ${participant.name} is not a member of this project team")
+                throw IllegalArgumentException("Participant \${participant.name} is not a member of this project team")
             }
 
             participantScores.criterionScores.forEach { criterionScore ->
                 val criterion = criteriaMap[criterionScore.criterionId] ?: throw NotFoundException(
-                    "Criterion with id ${criterionScore.criterionId} not found in review's rubrics"
+                    "Criterion with id \${criterionScore.criterionId} not found in review's rubrics"
                 )
 
                 if (criterionScore.score < 0 || criterionScore.score > criterion.maxScore) {
                     throw IllegalArgumentException(
-                        "Score for criterion ${criterion.name} must be between 0 and ${criterion.maxScore}"
+                        "Score for criterion \${criterion.name} must be between 0 and \${criterion.maxScore}"
                     )
                 }
 
@@ -240,11 +256,15 @@ class IndividualScoreService(
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(
+        value = ["individual-scores"],
+        key = "'project-eval-summary-' + #reviewId + '-' + #projectId"
+    )
     fun getProjectEvaluationSummary(reviewId: UUID, projectId: UUID): ProjectEvaluationSummary {
         val review = reviewRepository.findById(reviewId).orElseThrow {
-            NotFoundException("Review with id $reviewId not found")
+            NotFoundException("Review with id \$reviewId not found")
         }
-        val project = projectRepository.findByIdWithRelations(projectId) ?: throw NotFoundException("Project with id $projectId not found")
+        val project = projectRepository.findByIdWithRelations(projectId) ?: throw NotFoundException("Project with id \$projectId not found")
 
         if (!isProjectAssociatedWithReview(review, project)) {
             throw IllegalArgumentException("Project is not part of this review")
@@ -285,82 +305,13 @@ class IndividualScoreService(
     }
 
     private fun isProjectAssociatedWithReview(review: Review, project: Project): Boolean {
-        if (review.projects.any { it.id == project.id }) {
-            return true
-        }
-
-        val projectCourses = project.courses
-        if (projectCourses.isNotEmpty()) {
-            if (review.courses.any { reviewCourse ->
-                    projectCourses.any { projectCourse -> projectCourse.id == reviewCourse.id }
-                }) {
-                return true
-            }
-        }
-
-        val teamMembers = project.team.members
-        if (teamMembers.isNotEmpty()) {
-
-            val memberBatches = mutableSetOf<com.devlabs.devlabsbackend.batch.domain.Batch>()
-            teamMembers.forEach { member ->
-                val batches = batchRepository.findByStudentsContaining(member)
-                memberBatches.addAll(batches)
-            }
-
-            if (memberBatches.isNotEmpty()) {
-
-                if (review.batches.any { batch -> memberBatches.any { it.id == batch.id } }) {
-                    return true
-                }
-
-                val allCourses = courseRepository.findAll()
-                val batchCourses = allCourses.filter { course ->
-                    course.batches.any { batch -> memberBatches.any { it.id == batch.id } }
-                }
-
-                if (batchCourses.isNotEmpty()) {
-                    if (review.courses.any { course -> batchCourses.any { it.id == course.id } }) {
-                        return true
-                    }
-                }
-            }
-        }
-
-        val semesters = mutableSetOf<UUID>()
-
-        projectCourses.forEach { course ->
-            course.semester.id?.let { semesters.add(it) }
-        }
-
-        teamMembers.forEach { member ->
-            val batches = batchRepository.findByStudentsContaining(member)
-            batches.forEach { batch ->
-                batch.semester.forEach { semester ->
-                    semester.id?.let { semesters.add(it) }
-                }
-            }
-        }
-
-        if (semesters.isNotEmpty()) {
-            val semesterEntities = semesterRepository.findAllByIdWithCourses(semesters.toList())
-            semesterEntities.forEach { semester ->
-                val semesterCourses = semester.courses
-
-                if (review.courses.any { course -> semesterCourses.any { it.id == course.id } }) {
-                    return true
-                }
-
-                val semesterBatches = semester.batches
-                if (review.batches.any { batch -> semesterBatches.any { it.id == batch.id } }) {
-                    return true
-                }
-            }
-        }
-        return false
+        return reviewRepository.isProjectAssociatedWithReview(
+            review.id ?: throw IllegalStateException("Review must have ID"),
+            project.id ?: throw IllegalStateException("Project must have ID")
+        )
     }
 
-
-    private fun checkCourseEvaluationAccess(user: User, review: Review, project: Project, course: com.devlabs.devlabsbackend.course.domain.Course) {
+    private fun checkCourseEvaluationAccess(user: User, review: Review, project: Project, course: Course) {
         when (user.role) {
             Role.ADMIN, Role.MANAGER -> {
                 return
@@ -381,6 +332,4 @@ class IndividualScoreService(
             }
         }
     }
-
 }
-

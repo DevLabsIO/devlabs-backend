@@ -1,20 +1,31 @@
 package com.devlabs.devlabsbackend.notification.domain
-import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
+
+import jakarta.persistence.*
 import java.time.Instant
 import java.util.*
 
 @Entity
-class Notification (
+@Table(
+    name = "notification",
+    indexes = [
+        Index(name = "idx_notification_created_by", columnList = "createdBy"),
+        Index(name = "idx_notification_is_viewed", columnList = "isViewed"),
+        Index(name = "idx_notification_created_at", columnList = "createdAt")
+    ]
+)
+class Notification(
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
-    val title:String,
+    
+    val title: String,
+    
+    @Column(columnDefinition = "TEXT")
     val message: String,
-    val isViewed: Boolean,
-
+    
+    var isViewed: Boolean = false,
+    
     val createdBy: UUID,
+    
     val createdAt: Instant = Instant.now()
 )

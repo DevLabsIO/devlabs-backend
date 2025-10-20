@@ -8,8 +8,17 @@ import java.time.Year
 import java.util.*
 
 @Entity
-@Table(name = "batch")
-class Batch (    @Id
+@Table(
+    name = "batch",
+    indexes = [
+        Index(name = "idx_batch_is_active", columnList = "isActive"),
+        Index(name = "idx_batch_graduation_year", columnList = "graduationYear"),
+        Index(name = "idx_batch_department_id", columnList = "department_id"),
+        Index(name = "idx_batch_name", columnList = "name")
+    ]
+)
+class Batch (
+    @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     val id : UUID? = null,
     var name: String,
@@ -44,4 +53,4 @@ class Batch (    @Id
     @JoinColumn(name = "department_id")
     var department: Department? = null,
 
-    )
+)

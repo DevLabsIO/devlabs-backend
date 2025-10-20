@@ -7,17 +7,28 @@ import com.devlabs.devlabsbackend.rubrics.domain.Rubrics
 import com.devlabs.devlabsbackend.user.domain.User
 import jakarta.persistence.*
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.util.*
 
 @Entity
-@Table(name = "review")
-class Review (
+@Table(
+    name = "review",
+    indexes = [
+        Index(name = "idx_review_start_date", columnList = "startDate"),
+        Index(name = "idx_review_end_date", columnList = "endDate"),
+        Index(name = "idx_review_created_by_id", columnList = "created_by_id"),
+        Index(name = "idx_review_rubrics_id", columnList = "rubrics_id"),
+        Index(name = "idx_review_dates", columnList = "startDate, endDate")
+    ]
+)
+class Review(
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     val id: UUID? = null,
+    
     var name: String,
+    
     var startDate: LocalDate,
+    
     var endDate: LocalDate,
     
     @ManyToOne(fetch = FetchType.LAZY)
@@ -31,6 +42,7 @@ class Review (
         inverseJoinColumns = [JoinColumn(name = "course_id")]
     )
     val courses: MutableSet<Course> = mutableSetOf(),
+    
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "review_batch",
@@ -39,7 +51,7 @@ class Review (
     )
     val batches: MutableSet<Batch> = mutableSetOf(),
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "rubrics_id")
     var rubrics: Rubrics? = null,
 
@@ -51,5 +63,8 @@ class Review (
     )
     val projects: MutableSet<Project> = mutableSetOf(),
 
+    @ElementCollection
+    @CollectionTable(name = "review_files", joinColumns = [JoinColumn(name = "review_id")])
+    @Column(name = "file_path")
     var files: MutableSet<String> = mutableSetOf()
 )

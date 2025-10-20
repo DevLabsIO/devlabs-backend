@@ -1,7 +1,7 @@
-package com.devlabs.devlabsbackend.s3.controller
+package com.devlabs.devlabsbackend.minio.controller
 
-import com.devlabs.devlabsbackend.s3.service.MinioService
-import org.springframework.beans.factory.annotation.Autowired
+import com.devlabs.devlabsbackend.minio.service.MinioService
+import org.springframework.core.io.InputStreamResource
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -9,7 +9,7 @@ import org.springframework.web.multipart.MultipartFile
 
 @RestController
 @RequestMapping("/blob")
-class BlobController @Autowired constructor(
+class BlobController(
     private val minioService: MinioService
 ) {
     @PostMapping("/upload")
@@ -141,7 +141,7 @@ class BlobController @Autowired constructor(
             ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=\"$zipFileName\"")
                 .header("Content-Type", "application/zip")
-                .body(org.springframework.core.io.InputStreamResource(zipStream))
+                .body(InputStreamResource(zipStream))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to download files: ${e.message}"))

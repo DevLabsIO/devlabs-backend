@@ -1,10 +1,9 @@
 package com.devlabs.devlabsbackend.team.controller
 
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
-import com.devlabs.devlabsbackend.team.domain.DTO.CreateTeamRequest
-import com.devlabs.devlabsbackend.team.domain.DTO.TeamResponse
-import com.devlabs.devlabsbackend.team.domain.DTO.UpdateTeamRequest
-import com.devlabs.devlabsbackend.team.domain.Team
+import com.devlabs.devlabsbackend.team.domain.dto.CreateTeamRequest
+import com.devlabs.devlabsbackend.team.domain.dto.TeamResponse
+import com.devlabs.devlabsbackend.team.domain.dto.UpdateTeamRequest
 import com.devlabs.devlabsbackend.team.service.TeamService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -51,7 +50,7 @@ class TeamController(
     fun getTeamById(@PathVariable teamId: UUID): ResponseEntity<Any> {
         return try {
             val team = teamService.getTeamById(teamId)
-            ResponseEntity.ok(team.toTeamResponse())
+            ResponseEntity.ok(team)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(mapOf("error" to e.message))
@@ -68,7 +67,7 @@ class TeamController(
     ): ResponseEntity<Any> {
         return try {
             val team = teamService.updateTeam(teamId, request)
-            ResponseEntity.ok(team.toTeamResponse())
+            ResponseEntity.ok(team)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(mapOf("error" to e.message))
@@ -145,17 +144,4 @@ class TeamController(
                 .body(mapOf("error" to "Failed to search teams: ${e.message}"))
         }
     }
-
-}
-
-private fun Team.toTeamResponse(): TeamResponse {
-    return TeamResponse(
-        id =  this.id,
-        name = this.name,
-        description = this.description,
-        members = this.members,
-        projectCount = this.projects.size,
-        createdAt = this.createdAt,
-        updatedAt = this.updatedAt
-    )
 }

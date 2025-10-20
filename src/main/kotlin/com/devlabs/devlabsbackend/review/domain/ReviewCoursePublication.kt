@@ -7,8 +7,16 @@ import java.time.LocalDateTime
 import java.util.*
 
 @Entity
-@Table(name = "review_course_publication", 
-       uniqueConstraints = [UniqueConstraint(columnNames = ["review_id", "course_id"])])
+@Table(
+    name = "review_course_publication",
+    uniqueConstraints = [UniqueConstraint(columnNames = ["review_id", "course_id"])],
+    indexes = [
+        Index(name = "idx_review_course_pub_review", columnList = "review_id"),
+        Index(name = "idx_review_course_pub_course", columnList = "course_id"),
+        Index(name = "idx_review_course_pub_published_by", columnList = "published_by_id"),
+        Index(name = "idx_review_course_pub_published_at", columnList = "published_at")
+    ]
+)
 class ReviewCoursePublication(
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -18,7 +26,7 @@ class ReviewCoursePublication(
     @JoinColumn(name = "review_id", nullable = false)
     var review: Review,
 
-    @ManyToOne(fetch = FetchType.LAZY) 
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     var course: Course,
 

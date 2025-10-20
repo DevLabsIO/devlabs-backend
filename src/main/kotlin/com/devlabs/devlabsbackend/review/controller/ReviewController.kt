@@ -2,19 +2,16 @@ package com.devlabs.devlabsbackend.review.controller
 
 import com.devlabs.devlabsbackend.core.exception.ForbiddenException
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
-import com.devlabs.devlabsbackend.review.domain.DTO.CreateReviewRequest
-import com.devlabs.devlabsbackend.review.domain.DTO.ReviewPublicationResponse
-import com.devlabs.devlabsbackend.review.domain.DTO.ReviewResultsRequest
-import com.devlabs.devlabsbackend.review.domain.DTO.UserIdRequest
-import com.devlabs.devlabsbackend.review.domain.DTO.UpdateReviewRequest
+import com.devlabs.devlabsbackend.review.domain.dto.CreateReviewRequest
+import com.devlabs.devlabsbackend.review.domain.dto.ReviewPublicationResponse
+import com.devlabs.devlabsbackend.review.domain.dto.ReviewResultsRequest
+import com.devlabs.devlabsbackend.review.domain.dto.UpdateReviewRequest
 import com.devlabs.devlabsbackend.review.service.ReviewService
-import com.devlabs.devlabsbackend.review.service.toReviewResponse
 import com.devlabs.devlabsbackend.security.utils.SecurityUtils
 import com.devlabs.devlabsbackend.user.domain.Role
 import com.devlabs.devlabsbackend.user.repository.UserRepository
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
 import java.util.*
 
@@ -30,8 +27,8 @@ class ReviewController(
         @RequestBody request: CreateReviewRequest
     ): ResponseEntity<Any> {
         return try {
-            val review = reviewService.createReview(request, request.userId)
-            ResponseEntity.status(HttpStatus.CREATED).body(review.toReviewResponse())
+            val review = reviewService.createReview(request)
+            ResponseEntity.status(HttpStatus.CREATED).body(review)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(mapOf("error" to e.message))
@@ -50,7 +47,8 @@ class ReviewController(
     @GetMapping("/{reviewId}")
     fun getReviewById(@PathVariable reviewId: UUID): ResponseEntity<Any> {
         return try {
-            val review = reviewService.getReviewById(reviewId)
+            val userId = SecurityUtils.getCurrentUserId()
+            val review = reviewService.getReviewById(reviewId, userId)
             ResponseEntity.ok(review)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -61,6 +59,28 @@ class ReviewController(
         }
     }
 
+    @PutMapping("/{reviewId}")
+    fun updateReview(
+        @PathVariable reviewId: UUID,
+        @RequestBody request: UpdateReviewRequest
+    ): ResponseEntity<Any> {
+        return try {
+            val updatedReview = reviewService.updateReview(reviewId, request)
+            ResponseEntity.ok(updatedReview)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: ForbiddenException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to e.message))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to update review: ${e.message}"))
+        }
+    }
 
     @DeleteMapping("/{reviewId}")
     fun deleteReview(
@@ -86,28 +106,6 @@ class ReviewController(
         }
     }
 
-    @PostMapping("/{reviewId}/results")
-    fun getReviewResults(
-        @PathVariable reviewId: UUID,
-        @RequestBody request: ReviewResultsRequest
-    ): ResponseEntity<Any> {
-        return try {
-            val results = reviewService.getReviewResults(reviewId, request.projectId, request.userId)
-            ResponseEntity.ok(results)
-        } catch (e: NotFoundException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(mapOf("error" to e.message))
-        } catch (e: ForbiddenException) {
-            ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(mapOf("error" to e.message))
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(mapOf("error" to e.message))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to get review results: ${e.message}"))
-        }
-    }
     @GetMapping
     fun getReviewsForUser(
         @RequestParam(required = false, defaultValue = "0") page: Int,
@@ -128,6 +126,27 @@ class ReviewController(
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to get reviews: ${e.message}"))
+        }
+    }
+
+    @GetMapping("/user/{reviewId}")
+    fun getUserBasedReview(@PathVariable reviewId: UUID): ResponseEntity<Any> {
+        return try {
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+            
+            val reviewResponse = reviewService.getUserBasedReview(reviewId, userId)
+            ResponseEntity.ok(reviewResponse)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: ForbiddenException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to get user-based review: ${e.message}"))
         }
     }
 
@@ -157,16 +176,18 @@ class ReviewController(
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to search reviews: ${e.message}"))
-        }    }
+        }
+    }
 
     @GetMapping("/{reviewId}/publication")
     fun getPublicationStatus(
         @PathVariable reviewId: UUID,
-        @RequestBody request: UserIdRequest
+        @RequestBody request: Map<String, String>
     ): ResponseEntity<Any> {
         return try {
-            val user = userRepository.findById(request.userId).orElseThrow {
-                NotFoundException("User with id ${request.userId} not found")
+            val userId = request["userId"] ?: throw IllegalArgumentException("userId is required")
+            val user = userRepository.findById(userId).orElseThrow {
+                NotFoundException("User with id $userId not found")
             }
             val publicationStatus = reviewService.getPublicationStatus(reviewId)
 
@@ -192,13 +213,15 @@ class ReviewController(
                 .body(mapOf("error" to "Failed to get publication status: ${e.message}"))
         }
     }
+
     @PostMapping("/{reviewId}/publish")
     fun publishReview(
         @PathVariable reviewId: UUID,
-        @RequestBody request: UserIdRequest
+        @RequestBody request: Map<String, String>
     ): ResponseEntity<Any> {
         return try {
-            val publicationStatus = reviewService.publishReview(reviewId, request.userId)
+            val userId = request["userId"] ?: throw IllegalArgumentException("userId is required")
+            val publicationStatus = reviewService.publishReview(reviewId, userId)
             ResponseEntity.ok(publicationStatus)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -209,6 +232,27 @@ class ReviewController(
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to publish review: ${e.message}"))
+        }
+    }
+
+    @PostMapping("/{reviewId}/unpublish")
+    fun unpublishReview(
+        @PathVariable reviewId: UUID,
+        @RequestBody request: Map<String, String>
+    ): ResponseEntity<Any> {
+        return try {
+            val userId = request["userId"] ?: throw IllegalArgumentException("userId is required")
+            val publicationStatus = reviewService.unpublishReview(reviewId, userId)
+            ResponseEntity.ok(publicationStatus)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: ForbiddenException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to unpublish review: ${e.message}"))
         }
     }
 
@@ -226,24 +270,40 @@ class ReviewController(
         }
     }
 
+    @GetMapping("/project/{projectId}/assignment")
+    fun checkProjectReviewAssignment(@PathVariable projectId: UUID): ResponseEntity<Any> {
+        return try {
+            val assignment = reviewService.checkProjectReviewAssignment(projectId)
+            ResponseEntity.ok(assignment)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to check project review assignment: ${e.message}"))
+        }
+    }
 
-    @PostMapping("/{reviewId}/unpublish")
-    fun unpublishReview(
+    @PostMapping("/{reviewId}/results")
+    fun getReviewResults(
         @PathVariable reviewId: UUID,
-        @RequestBody request: UserIdRequest
+        @RequestBody request: ReviewResultsRequest
     ): ResponseEntity<Any> {
         return try {
-            val publicationStatus = reviewService.unpublishReview(reviewId, request.userId)
-            ResponseEntity.ok(publicationStatus)
+            val results = reviewService.getReviewResults(reviewId, request.projectId, request.userId)
+            ResponseEntity.ok(results)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(mapOf("error" to e.message))
         } catch (e: ForbiddenException) {
             ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(mapOf("error" to e.message))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("error" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to unpublish review: ${e.message}"))
+                .body(mapOf("error" to "Failed to get review results: ${e.message}"))
         }
     }
 
@@ -257,13 +317,13 @@ class ReviewController(
         @RequestBody request: FileBodyRequest
     ): ResponseEntity<Any> {
         return try {
-            val file = reviewService.addFileToReview(reviewId, request.url)
-            ResponseEntity.ok(file)
+            reviewService.addFileToReview(reviewId, request.url)
+            ResponseEntity.ok(mapOf("success" to true))
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(mapOf("error" to e.message))
-        } catch (e: ForbiddenException) {
-            ResponseEntity.status(HttpStatus.FORBIDDEN)
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(mapOf("error" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -277,63 +337,17 @@ class ReviewController(
         @RequestBody request: FileBodyRequest
     ): ResponseEntity<Any> {
         return try {
-            val result = reviewService.removeFileFromReview(reviewId, request.url)
-            ResponseEntity.ok(mapOf("success" to result))
+            reviewService.removeFileFromReview(reviewId, request.url)
+            ResponseEntity.ok(mapOf("success" to true))
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(mapOf("error" to e.message))
-        } catch (e: ForbiddenException) {
-            ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(mapOf("error" to e.message))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to remove file from review: ${e.message}"))
-        }
-    }
-
-    @PutMapping("/{reviewId}")
-    @Transactional
-    fun updateReview(
-        @PathVariable reviewId: UUID,
-        @RequestBody request: UpdateReviewRequest
-    ): ResponseEntity<Any> {
-        return try {
-            val updatedReview = reviewService.updateReview(reviewId, request, request.userId)
-            ResponseEntity.ok(updatedReview.toReviewResponse())
-        } catch (e: NotFoundException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(mapOf("error" to e.message))
-        } catch (e: ForbiddenException) {
-            ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(mapOf("error" to e.message))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(mapOf("error" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to update review: ${e.message}"))
+                .body(mapOf("error" to "Failed to remove file from review: ${e.message}"))
         }
     }
-
-    @GetMapping("/user/{reviewId}")
-    fun getUserBasedReview(@PathVariable reviewId: UUID): ResponseEntity<Any> {
-        return try {
-            val userId = SecurityUtils.getCurrentUserId()
-                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(mapOf("error" to "User not authenticated"))
-            
-            val reviewResponse = reviewService.getUserBasedReview(reviewId, userId)
-            ResponseEntity.ok(reviewResponse)
-        } catch (e: NotFoundException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(mapOf("error" to e.message))
-        } catch (e: ForbiddenException) {
-            ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(mapOf("error" to e.message))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to get user-based review: ${e.message}"))
-        }
-    }
-
 }

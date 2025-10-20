@@ -7,17 +7,24 @@ import java.time.Instant
 import java.util.*
 
 @Entity
-@Table(name = "kanban_board")
+@Table(
+    name = "kanban_board",
+    indexes = [
+        Index(name = "idx_kanban_board_project", columnList = "project_id"),
+        Index(name = "idx_kanban_board_created_at", columnList = "createdAt"),
+        Index(name = "idx_kanban_board_updated_at", columnList = "updatedAt")
+    ]
+)
 class KanbanBoard(
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
     
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")
     var project: Project,
     
-    @OneToMany(mappedBy = "board", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    @OneToMany(mappedBy = "board", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
     var columns: MutableSet<KanbanColumn> = mutableSetOf(),
     
     val createdAt: Timestamp = Timestamp.from(Instant.now()),

@@ -16,26 +16,37 @@ enum class ProjectStatus {
 }
 
 @Entity
-@Table(name = "project")
+@Table(
+    name = "project",
+    indexes = [
+        Index(name = "idx_project_status", columnList = "status"),
+        Index(name = "idx_project_team_id", columnList = "team_id"),
+        Index(name = "idx_project_created_at", columnList = "createdAt"),
+        Index(name = "idx_project_updated_at", columnList = "updatedAt"),
+        Index(name = "idx_project_status_updated", columnList = "status, updatedAt")
+    ]
+)
 class Project(
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     val id: UUID? = null,
     
     var title: String,
-      @Column(columnDefinition = "TEXT")
+    
+    @Column(columnDefinition = "TEXT")
     var description: String,
-      @Column(columnDefinition = "TEXT")
+    
+    @Column(columnDefinition = "TEXT")
     var objectives: String? = null,
     
     var githubUrl: String? = null,
     
     var status: ProjectStatus = ProjectStatus.PROPOSED,
-
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id")
     var team: Team,
-
+    
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "project_courses",
@@ -43,7 +54,7 @@ class Project(
         inverseJoinColumns = [JoinColumn(name = "course_id")]
     )
     var courses: MutableSet<Course> = mutableSetOf(),
-
+    
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "review_project",

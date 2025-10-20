@@ -5,7 +5,12 @@ import jakarta.persistence.*
 import java.util.*
 
 @Entity
-@Table(name = "department")
+@Table(
+    name = "department",
+    indexes = [
+        Index(name = "idx_department_name", columnList = "name")
+    ]
+)
 class Department (
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)

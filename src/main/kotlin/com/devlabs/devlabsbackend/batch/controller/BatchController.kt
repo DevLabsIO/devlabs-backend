@@ -1,15 +1,11 @@
 package com.devlabs.devlabsbackend.batch.controller
 
-import com.devlabs.devlabsbackend.batch.domain.dto.BatchResponse
-import com.devlabs.devlabsbackend.batch.domain.dto.CreateBatchRequest
-import com.devlabs.devlabsbackend.batch.domain.dto.SemesterBatchResponse
-import com.devlabs.devlabsbackend.batch.domain.dto.UpdateBatchRequest
+import com.devlabs.devlabsbackend.batch.domain.dto.*
 import com.devlabs.devlabsbackend.batch.service.BatchService
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
 import com.devlabs.devlabsbackend.core.pagination.PaginatedResponse
 import com.devlabs.devlabsbackend.core.pagination.PaginationInfo
 import com.devlabs.devlabsbackend.security.utils.SecurityUtils
-import com.devlabs.devlabsbackend.semester.domain.Semester
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -148,33 +144,25 @@ class BatchController(
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("message" to "User not authenticated"))
         val userGroup = rawUserGroup.trim().removePrefix("[/").removeSuffix("]")
         try {
-
-            if (userGroup.equals("admin", ignoreCase = true) || userGroup.equals("manager", ignoreCase = true)) {
-                val batches = batchService.getAllActiveBatches()
-                return ResponseEntity.ok(batches)
-            } else if (userGroup.equals("faculty", ignoreCase = true)) {
-                val currentUserId = SecurityUtils.getCurrentUserId()
-                    ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("message" to "User not authenticated"))
-                val batches = batchService.getAllActiveBatchesForUser(currentUserId)
-                return ResponseEntity.ok(batches)
-            } else {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(mapOf("message" to "Access denied for user group: $userGroup"))
+            val batches = when {
+                userGroup.equals("admin", ignoreCase = true) || userGroup.equals("manager", ignoreCase = true) -> {
+                    batchService.getAllActiveBatches()
+                }
+                userGroup.equals("faculty", ignoreCase = true) -> {
+                    val currentUserId = SecurityUtils.getCurrentUserId()
+                        ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("message" to "User not authenticated"))
+                    batchService.getAllActiveBatches(currentUserId)
+                }
+                else -> {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(mapOf("message" to "Unauthorized access - $userGroup role cannot access batch information"))
+                }
             }
-        }
-        catch (e: Exception) {
+            return ResponseEntity.ok(batches)
+        } catch (e: Exception) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("message" to "Failed to fetch active batches: ${e.message}"))
         }
     }
 
-}
-
-fun Semester.toSemesterBatchResponse(): SemesterBatchResponse {
-    return SemesterBatchResponse(
-        id = this.id.toString(),
-        name = this.name,
-        year = this.year.toString(),
-        isActive = this.isActive
-    )
 }

@@ -23,29 +23,85 @@ interface IndividualScoreRepository : JpaRepository<IndividualScore, UUID> {
         project: Project
     ): IndividualScore?
     
+    @Query("""
+        SELECT s FROM IndividualScore s 
+        LEFT JOIN FETCH s.criterion
+        WHERE s.participant = :participant 
+          AND s.review = :review 
+          AND s.project = :project
+    """)
     fun findByParticipantAndReviewAndProject(
-        participant: User,
-        review: Review,
-        project: Project
+        @Param("participant") participant: User,
+        @Param("review") review: Review,
+        @Param("project") project: Project
     ): List<IndividualScore>
     
+    @Query("""
+        SELECT s FROM IndividualScore s 
+        LEFT JOIN FETCH s.participant
+        LEFT JOIN FETCH s.criterion
+        WHERE s.review = :review 
+          AND s.project = :project
+    """)
     fun findByReviewAndProject(
-        review: Review,
-        project: Project
+        @Param("review") review: Review,
+        @Param("project") project: Project
     ): List<IndividualScore>
     
+    @Query(value = """
+        SELECT 
+            i_s.id,
+            i_s.review_id,
+            i_s.project_id,
+            i_s.participant_id,
+            u.name as participant_name,
+            i_s.criterion_id,
+            c.name as criterion_name,
+            c.max_score as criterion_max_score,
+            i_s.score,
+            i_s.comment
+        FROM individual_score i_s
+        JOIN "user" u ON u.id = i_s.participant_id
+        JOIN criterion c ON c.id = i_s.criterion_id
+        WHERE i_s.review_id = :reviewId
+          AND i_s.project_id = :projectId
+        ORDER BY i_s.participant_id, i_s.criterion_id
+    """, nativeQuery = true)
+    fun findScoreDataByReviewAndProject(
+        @Param("reviewId") reviewId: UUID,
+        @Param("projectId") projectId: UUID
+    ): List<Map<String, Any>>
+    
+    @Query("""
+        SELECT s FROM IndividualScore s 
+        LEFT JOIN FETCH s.participant
+        LEFT JOIN FETCH s.criterion
+        WHERE s.review = :review 
+          AND s.project = :project 
+          AND s.course = :course
+    """)
     fun findByReviewAndProjectAndCourse(
-        review: Review,
-        project: Project,
-        course: Course
+        @Param("review") review: Review,
+        @Param("project") project: Project,
+        @Param("course") course: Course
     ): List<IndividualScore>
     
+    @Query("""
+        SELECT s FROM IndividualScore s 
+        LEFT JOIN FETCH s.criterion
+        WHERE s.participant = :participant 
+          AND s.review = :review 
+          AND s.project = :project 
+          AND s.course = :course
+    """)
     fun findByParticipantAndReviewAndProjectAndCourse(
-        participant: User,
-        review: Review,
-        project: Project,
-        course: Course
-    ): List<IndividualScore>    fun findByParticipantAndCriterionAndReviewAndProjectAndCourse(
+        @Param("participant") participant: User,
+        @Param("review") review: Review,
+        @Param("project") project: Project,
+        @Param("course") course: Course
+    ): List<IndividualScore>
+    
+    fun findByParticipantAndCriterionAndReviewAndProjectAndCourse(
         participant: User,
         criterion: Criterion,
         review: Review,
@@ -111,7 +167,13 @@ interface IndividualScoreRepository : JpaRepository<IndividualScore, UUID> {
         @Param("course") course: Course
     ): List<Review>
     
-    @Query("SELECT s FROM IndividualScore s WHERE s.participant = :participant AND s.review = :review AND s.course = :course")
+    @Query("""
+        SELECT s FROM IndividualScore s 
+        LEFT JOIN FETCH s.criterion
+        WHERE s.participant = :participant 
+          AND s.review = :review 
+          AND s.course = :course
+    """)
     fun findByParticipantAndReviewAndCourse(
         @Param("participant") participant: User,
         @Param("review") review: Review,

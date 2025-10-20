@@ -2,24 +2,19 @@ package com.devlabs.devlabsbackend.department.controller
 
 import com.devlabs.devlabsbackend.core.pagination.PaginatedResponse
 import com.devlabs.devlabsbackend.core.pagination.PaginationInfo
-import com.devlabs.devlabsbackend.department.domain.Department
 import com.devlabs.devlabsbackend.department.domain.dto.*
-import com.devlabs.devlabsbackend.department.repository.DepartmentRepository
 import com.devlabs.devlabsbackend.department.service.DepartmentService
-import com.devlabs.devlabsbackend.department.service.toDepartmentResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.util.*
 
-
 @RestController
 @RequestMapping("/api/department")
 class DepartmentController(
-    private val departmentService: DepartmentService,
-    private val departmentRepository: DepartmentRepository,
-){
-
+    private val departmentService: DepartmentService
+) {
+    
     @GetMapping
     fun getAllDepartments(
         @RequestParam(required = false, defaultValue = "0") page: Int,
@@ -36,8 +31,6 @@ class DepartmentController(
         }
     }
     
-
-
     @GetMapping("/search")
     fun searchDepartments(
         @RequestParam query: String,
@@ -57,11 +50,21 @@ class DepartmentController(
                 ))
         }
     }
-
+    
+    @GetMapping("/{departmentId}")
+    fun getDepartmentById(@PathVariable departmentId: UUID): ResponseEntity<Any> {
+        return try {
+            val department = departmentService.getDepartmentById(departmentId)
+            ResponseEntity.ok(department)
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("message" to "Department not found: ${e.message}"))
+        }
+    }
+    
     @PostMapping
     fun createDepartment(@RequestBody request: CreateDepartmentRequest): DepartmentResponse {
-        val newDepartment = departmentService.createDepartment(request)
-        return newDepartment.toDepartmentResponse()
+        return departmentService.createDepartment(request)
     }
 
     @PutMapping("/{departmentId}")
@@ -69,8 +72,7 @@ class DepartmentController(
         @PathVariable departmentId: UUID,
         @RequestBody request: UpdateDepartmentRequest
     ): DepartmentResponse {
-        val updatedDepartment = departmentService.updateDepartment(departmentId, request)
-        return updatedDepartment.toDepartmentResponse()
+        return departmentService.updateDepartment(departmentId, request)
     }
 
     @DeleteMapping("/{departmentId}")
@@ -78,21 +80,10 @@ class DepartmentController(
         departmentService.deleteDepartment(departmentId)
         return ResponseEntity.ok().build()
     }
-
+    
     @GetMapping("/all")
-    fun getAllDepartmentsLegacy(): List<SimpleDepartmentResponse>{
-        return departmentRepository.findAll().map{it.toSimpleDepartmentResponse()}
-    }
-
-    @GetMapping("/{departmentId}")
-    fun getDepartmentById(@PathVariable departmentId: UUID): ResponseEntity<Any> {
-        return try {
-            val department = departmentService.getDepartmentById(departmentId)
-            ResponseEntity.ok(department.toDepartmentResponse())
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(mapOf("message" to "Department not found: ${e.message}"))
-        }
+    fun getAllDepartmentsLegacy(): List<SimpleDepartmentResponse> {
+        return departmentService.getAllDepartmentsSimple()
     }
 
     @GetMapping("/{departmentId}/batches")
@@ -100,11 +91,3 @@ class DepartmentController(
         return departmentService.getBatchesByDepartmentId(departmentId)
     }
 }
-
-fun Department.toSimpleDepartmentResponse(): SimpleDepartmentResponse {
-    return SimpleDepartmentResponse(
-        id = this.id ?: UUID.randomUUID(),
-        name = this.name
-    )
-}
-

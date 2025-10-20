@@ -1,9 +1,11 @@
 package com.devlabs.devlabsbackend.kanban.service
 
+import com.devlabs.devlabsbackend.core.config.CacheConfig
+import com.devlabs.devlabsbackend.core.exception.ForbiddenException
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
-import com.devlabs.devlabsbackend.kanban.domain.DTO.*
 import com.devlabs.devlabsbackend.kanban.domain.KanbanBoard
 import com.devlabs.devlabsbackend.kanban.domain.KanbanTask
+import com.devlabs.devlabsbackend.kanban.domain.dto.*
 import com.devlabs.devlabsbackend.kanban.repository.KanbanBoardRepository
 import com.devlabs.devlabsbackend.kanban.repository.KanbanColumnRepository
 import com.devlabs.devlabsbackend.kanban.repository.KanbanTaskRepository
@@ -11,8 +13,11 @@ import com.devlabs.devlabsbackend.project.repository.ProjectRepository
 import com.devlabs.devlabsbackend.security.utils.SecurityUtils
 import com.devlabs.devlabsbackend.user.domain.Role
 import com.devlabs.devlabsbackend.user.repository.UserRepository
-import jakarta.transaction.Transactional
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
+import org.springframework.cache.annotation.Caching
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.sql.Timestamp
 import java.time.Instant
 import java.util.*
@@ -27,9 +32,10 @@ class KanbanService(
     private val userRepository: UserRepository
 ) {
 
-//     @Cacheable(value = [CacheConfig.KANBAN_CACHE], key = "'board_response_project_' + #projectId")
+    @Cacheable(value = [CacheConfig.KANBAN_BOARD], key = "'project_' + #projectId")
     fun getOrCreateBoardForProject(projectId: UUID): KanbanBoardResponse {
-        val project = projectRepository.findByIdWithTeamAndMembers(projectId) ?: throw NotFoundException("Project with id $projectId not found")
+        val project = projectRepository.findByIdWithTeamAndMembers(projectId) 
+            ?: throw NotFoundException("Project with id $projectId not found")
         
         val board = kanbanBoardRepository.findByProjectWithRelations(project) ?: run {
             val newBoard = KanbanBoard(project = project)
@@ -41,14 +47,15 @@ class KanbanService(
         return board.toBoardResponse()
     }
 
-    // @CacheEvict(
-    //     value = [CacheConfig.KANBAN_CACHE], 
-    //     allEntries = true
-    // )
+    @Caching(
+        evict = [
+            CacheEvict(value = [CacheConfig.KANBAN_BOARD], key = "'project_' + #request.columnId"),
+            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#result.id")
+        ]
+    )
     fun createTask(request: CreateTaskRequest, userId: String): KanbanTaskResponse {
-        val column = kanbanColumnRepository.findById(request.columnId).orElseThrow {
-            NotFoundException("Column with id ${request.columnId} not found")
-        }
+        val column = kanbanColumnRepository.findByIdWithProjectAndTeam(request.columnId)
+            ?: throw NotFoundException("Column with id ${request.columnId} not found")
         
         val createdBy = userRepository.findById(userId).orElseThrow {
             NotFoundException("User with id $userId not found")
@@ -58,13 +65,7 @@ class KanbanService(
                           column.board.project.team.members.contains(createdBy)
         
         if (!isAuthorized) {
-            throw IllegalArgumentException("Only admin, manager, faculty, or team members can create tasks")
-        }
-        
-        val assignedTo = request.assignedToId?.let { assignedToId ->
-            userRepository.findById(assignedToId).orElseThrow {
-                NotFoundException("User with id $assignedToId not found")
-            }
+            throw ForbiddenException("Only admin, manager, faculty, or team members can create tasks")
         }
 
         val maxPosition = kanbanTaskRepository.findMaxPositionInColumn(column) ?: -1
@@ -78,15 +79,18 @@ class KanbanService(
         )
         
         val savedTask = kanbanTaskRepository.save(task)
+        evictBoardCache(column.board.project.id!!)
         return savedTask.toTaskResponse()
     }
 
-    // @CacheEvict(
-    //     value = [CacheConfig.KANBAN_CACHE], 
-    //     allEntries = true
-    // )
+    @Caching(
+        evict = [
+            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#taskId")
+        ]
+    )
     fun updateTask(taskId: UUID, request: UpdateTaskRequest, userId: String): KanbanTaskResponse {
-        val task = kanbanTaskRepository.findByIdWithRelations(taskId) ?: throw NotFoundException("Task with id $taskId not found")
+        val task = kanbanTaskRepository.findByIdWithRelations(taskId) 
+            ?: throw NotFoundException("Task with id $taskId not found")
         
         val requester = userRepository.findById(userId).orElseThrow {
             NotFoundException("User with id $userId not found")
@@ -96,7 +100,7 @@ class KanbanService(
                           task.column.board.project.team.members.contains(requester)
         
         if (!isAuthorized) {
-            throw IllegalArgumentException("Only admin, manager, faculty, or team members can update tasks")
+            throw ForbiddenException("Only admin, manager, faculty, or team members can update tasks")
         }
         
         request.title?.let { task.title = it }
@@ -105,15 +109,18 @@ class KanbanService(
         task.updatedAt = Timestamp.from(Instant.now())
         
         val savedTask = kanbanTaskRepository.save(task)
+        evictBoardCache(task.column.board.project.id!!)
         return savedTask.toTaskResponse()
     }
 
-    // @CacheEvict(
-    //     value = [CacheConfig.KANBAN_CACHE], 
-    //     allEntries = true
-    // )
+    @Caching(
+        evict = [
+            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#taskId")
+        ]
+    )
     fun moveTask(taskId: UUID, request: MoveTaskRequest, userId: String): KanbanTaskResponse {
-        val task = kanbanTaskRepository.findByIdWithRelations(taskId) ?: throw NotFoundException("Task with id $taskId not found")
+        val task = kanbanTaskRepository.findByIdWithRelations(taskId) 
+            ?: throw NotFoundException("Task with id $taskId not found")
         
         val newColumn = kanbanColumnRepository.findById(request.columnId).orElseThrow {
             NotFoundException("Column with id ${request.columnId} not found")
@@ -127,7 +134,7 @@ class KanbanService(
                           task.column.board.project.team.members.contains(requester)
         
         if (!isAuthorized) {
-            throw IllegalArgumentException("Only admin, manager, faculty, or team members can move tasks")
+            throw ForbiddenException("Only admin, manager, faculty, or team members can move tasks")
         }
 
         task.column = newColumn
@@ -135,18 +142,21 @@ class KanbanService(
         task.updatedAt = Timestamp.from(Instant.now())
         
         val savedTask = kanbanTaskRepository.save(task)
+        evictBoardCache(task.column.board.project.id!!)
         return savedTask.toTaskResponse()
     }
 
-    // @CacheEvict(
-    //     value = [CacheConfig.KANBAN_CACHE], 
-    //     allEntries = true
-    // )
+    @Caching(
+        evict = [
+            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#taskId")
+        ]
+    )
     fun deleteTask(taskId: UUID) {
-        val task = kanbanTaskRepository.findByIdWithRelations(taskId) ?: throw NotFoundException("Task with id $taskId not found")
+        val task = kanbanTaskRepository.findByIdWithRelations(taskId) 
+            ?: throw NotFoundException("Task with id $taskId not found")
         
         val currentUserId = SecurityUtils.getCurrentUserId() 
-            ?: throw IllegalArgumentException("User not authenticated")
+            ?: throw ForbiddenException("User not authenticated")
         
         val requester = userRepository.findById(currentUserId).orElseThrow {
             NotFoundException("User with id $currentUserId not found")
@@ -156,14 +166,15 @@ class KanbanService(
                           task.column.board.project.team.members.contains(requester)
         
         if (!isAuthorized) {
-            throw IllegalArgumentException("Only admin, manager, faculty, or team members can delete tasks")
+            throw ForbiddenException("Only admin, manager, faculty, or team members can delete tasks")
         }
         
+        val projectId = task.column.board.project.id!!
         kanbanTaskRepository.delete(task)
+        evictBoardCache(projectId)
     }
 
-
-    // @Cacheable(value = [CacheConfig.KANBAN_CACHE], key = "'task_' + #taskId")
+    @Cacheable(value = [CacheConfig.KANBAN_TASK], key = "#taskId")
     fun getTaskById(taskId: UUID): KanbanTaskResponse {
         val task = kanbanTaskRepository.findById(taskId).orElseThrow {
             NotFoundException("Task with id $taskId not found")
@@ -172,5 +183,9 @@ class KanbanService(
         task.createdBy.name
         
         return task.toTaskResponse()
+    }
+
+    @CacheEvict(value = [CacheConfig.KANBAN_BOARD], allEntries = true)
+    private fun evictBoardCache(@Suppress("UNUSED_PARAMETER") projectId: UUID) {
     }
 }

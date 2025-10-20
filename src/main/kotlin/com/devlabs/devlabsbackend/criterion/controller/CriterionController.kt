@@ -2,8 +2,8 @@ package com.devlabs.devlabsbackend.criterion.controller
 
 import com.devlabs.devlabsbackend.core.exception.ForbiddenException
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
-import com.devlabs.devlabsbackend.criterion.domain.DTO.UserIdRequest
 import com.devlabs.devlabsbackend.criterion.domain.dto.CriterionResponse
+import com.devlabs.devlabsbackend.criterion.domain.dto.UserIdRequest
 import com.devlabs.devlabsbackend.criterion.service.CriterionService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -28,7 +28,6 @@ class CriterionController(
                 .body(mapOf("error" to "Failed to retrieve criterion: ${e.message}"))
         }
     }
-    
 
     @GetMapping("/rubrics/{rubricsId}")
     fun getCriteriaByRubricsId(@PathVariable rubricsId: UUID): ResponseEntity<Any> {
@@ -43,7 +42,6 @@ class CriterionController(
                 .body(mapOf("error" to "Failed to retrieve criteria: ${e.message}"))
         }
     }
-
 
     @DeleteMapping("/{id}")
     fun deleteCriterion(

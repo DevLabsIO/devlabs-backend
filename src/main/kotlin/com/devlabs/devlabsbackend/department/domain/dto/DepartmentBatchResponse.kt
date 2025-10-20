@@ -1,6 +1,5 @@
 package com.devlabs.devlabsbackend.department.domain.dto
 
-import jakarta.persistence.Id
 import java.time.Year
 import java.util.UUID
 

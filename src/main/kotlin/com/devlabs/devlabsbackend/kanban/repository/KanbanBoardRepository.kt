@@ -5,14 +5,15 @@ import com.devlabs.devlabsbackend.project.domain.Project
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-import org.springframework.data.rest.core.annotation.RepositoryRestResource
+import org.springframework.stereotype.Repository
 import java.util.*
 
-@RepositoryRestResource(path = "kanban-boards")
+@Repository
 interface KanbanBoardRepository : JpaRepository<KanbanBoard, UUID> {
     
     @Query("""
         SELECT DISTINCT b FROM KanbanBoard b 
+        LEFT JOIN FETCH b.project p
         LEFT JOIN FETCH b.columns c 
         LEFT JOIN FETCH c.tasks t 
         LEFT JOIN FETCH t.createdBy u 

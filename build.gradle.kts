@@ -1,13 +1,14 @@
 plugins {
     kotlin("jvm") version "1.9.25"
     kotlin("plugin.spring") version "1.9.25"
-    id("org.springframework.boot") version "3.4.5"
+    id("org.springframework.boot") version "3.5.6"
     id("io.spring.dependency-management") version "1.1.7"
     kotlin("plugin.jpa") version "1.9.25"
 }
 
 group = "com.devlabs"
 version = "0.0.1-SNAPSHOT"
+description = "devlabs-backend"
 
 java {
     toolchain {
@@ -24,6 +25,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate6")
+    // Afterburner REMOVED - causes Redis serialization issues and Java 17+ module conflicts
+    // implementation("com.fasterxml.jackson.module:jackson-module-afterburner")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
@@ -36,11 +39,11 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    runtimeOnly("org.postgresql:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     implementation("org.springframework.boot:spring-boot-starter-data-rest")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
     implementation("io.minio:minio:8.5.17")
-
     //VJson
     implementation("com.vladmihalcea:hibernate-types-60:2.21.1")
 }

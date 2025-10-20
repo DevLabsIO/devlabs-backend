@@ -14,7 +14,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter
 import org.springframework.security.web.SecurityFilterChain
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
@@ -41,6 +40,7 @@ class DevSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtA
                     .requestMatchers("/api/users/**").permitAll()
                     .requestMatchers("/api/user/check-exists").permitAll()
                     .requestMatchers("/error", "/actuator/**").permitAll()
+                    .requestMatchers("/docs", "/docs/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                     .anyRequest().permitAll()
             }
             .oauth2ResourceServer { oauth2 ->
@@ -59,8 +59,8 @@ class DevSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtA
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration()
-        configuration.allowedOrigins = listOf("http://localhost:3000")
-        configuration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        configuration.allowedOrigins = listOf("http://localhost:3000", "http://172.17.9.74", "https://172.17.9.74")
+        configuration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
         configuration.allowedHeaders = listOf("*")
         configuration.allowCredentials = true
 
@@ -74,7 +74,7 @@ class DevSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtA
 @Profile("prod")
 @EnableWebSecurity
 @EnableMethodSecurity
-class SecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint) {
+class ProdSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint) {
 
     @Value("\${cors.allowed-origins:}")
     lateinit var allowedOrigins: String
@@ -85,17 +85,17 @@ class SecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtAuth
     }
 
     @Bean
-    @Throws(Exception::class)
-    fun devlabsServerFilterChain(http: HttpSecurity): SecurityFilterChain {
+    fun prodSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { csrf -> csrf.disable() }
             .cors(Customizer.withDefaults())
-            .sessionManagement { session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }            .authorizeHttpRequests { authorizeRequests ->
+            .sessionManagement { session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .authorizeHttpRequests { authorizeRequests ->
                 authorizeRequests
                     .requestMatchers("/api/users/**").permitAll()
                     .requestMatchers("/api/user/check-exists").permitAll()
                     .requestMatchers("/error", "/actuator/**").permitAll()
-                 .anyRequest().authenticated()
+                    .anyRequest().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->
                 oauth2.jwt { jwt ->
@@ -111,7 +111,7 @@ class SecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtAuth
     }
 
     @Bean
-    fun corsConfigurationSource(): CorsConfigurationSource {
+    fun prodCorsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration()
 
         configuration.allowedOrigins = if (allowedOrigins.isBlank()) {

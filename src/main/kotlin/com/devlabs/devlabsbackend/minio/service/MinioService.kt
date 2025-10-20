@@ -1,15 +1,20 @@
-package com.devlabs.devlabsbackend.s3.service
+package com.devlabs.devlabsbackend.minio.service
 
 import io.minio.*
-import org.springframework.beans.factory.annotation.Autowired
+import io.minio.http.Method
+import io.minio.messages.DeleteObject
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.*
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 @Service
-class MinioService @Autowired constructor(
+class MinioService(
     private val minioClient: MinioClient,
     @Qualifier("minioBucketName") private val bucketName: String
 ) {
@@ -109,7 +114,7 @@ class MinioService @Autowired constructor(
             GetPresignedObjectUrlArgs.builder()
                 .bucket(bucketName)
                 .`object`(objectName)
-                .method(io.minio.http.Method.GET)
+                .method(Method.GET)
                 .expiry(expirySeconds)
                 .build()
         )
@@ -151,7 +156,7 @@ class MinioService @Autowired constructor(
         )
 
         val tempZipFile = java.io.File.createTempFile("minio-download", ".zip")
-        val zipOutputStream = java.util.zip.ZipOutputStream(java.io.FileOutputStream(tempZipFile))
+        val zipOutputStream = ZipOutputStream(FileOutputStream(tempZipFile))
 
         try {
             objects.forEach { item ->
@@ -164,7 +169,7 @@ class MinioService @Autowired constructor(
                 )
 
                 val fileName = result.objectName().substringAfterLast('/')
-                val zipEntry = java.util.zip.ZipEntry(fileName)
+                val zipEntry = ZipEntry(fileName)
                 zipOutputStream.putNextEntry(zipEntry)
                 
                 objectStream.copyTo(zipOutputStream)
@@ -175,7 +180,7 @@ class MinioService @Autowired constructor(
             zipOutputStream.close()
         }
 
-        return java.io.FileInputStream(tempZipFile)
+        return FileInputStream(tempZipFile)
     }
 
     fun deleteDirectory(directoryPath: String): Int {
@@ -193,7 +198,7 @@ class MinioService @Autowired constructor(
         
         if (objectNames.isNotEmpty()) {
             val deleteObjects = objectNames.map { 
-                io.minio.messages.DeleteObject(it) 
+                DeleteObject(it) 
             }
             
             minioClient.removeObjects(

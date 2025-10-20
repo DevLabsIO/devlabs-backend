@@ -1,11 +1,7 @@
-package com.devlabs.devlabsbackend.semester.domain.DTO
-
-import java.util.*
+package com.devlabs.devlabsbackend.semester.domain.dto
 
 data class UpdateSemesterDTO(
-    val id: UUID,
     val name: String? = null,
     val year: Int? = null,
-    val isActive: Boolean? = null,
+    val isActive: Boolean? = null
 )
-

@@ -7,14 +7,24 @@ import com.devlabs.devlabsbackend.user.domain.User
 import jakarta.persistence.*
 import java.util.*
 
-enum class CourseType{
+enum class CourseType {
     CORE,
     ELECTIVE,
     MICRO_CREDENTIAL
 }
+
 @Entity
-@Table(name = "course")
-class Course(    @Id
+@Table(
+    name = "course",
+    indexes = [
+        Index(name = "idx_course_semester_id", columnList = "semester_id"),
+        Index(name = "idx_course_name", columnList = "name"),
+        Index(name = "idx_course_code", columnList = "code"),
+        Index(name = "idx_course_type", columnList = "type")
+    ]
+)
+class Course(
+    @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
     var name: String,

@@ -1,12 +1,13 @@
 package com.devlabs.devlabsbackend.project.controller
 
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
-import com.devlabs.devlabsbackend.project.domain.DTO.CreateProjectRequest
-import com.devlabs.devlabsbackend.project.domain.DTO.UpdateProjectRequest
-import com.devlabs.devlabsbackend.project.domain.DTO.UserIdRequest
-import com.devlabs.devlabsbackend.project.domain.DTO.toProjectResponse
+import com.devlabs.devlabsbackend.project.domain.dto.CreateProjectRequest
+import com.devlabs.devlabsbackend.project.domain.dto.UpdateProjectRequest
+import com.devlabs.devlabsbackend.project.domain.dto.UserIdRequest
+import com.devlabs.devlabsbackend.project.domain.dto.toProjectResponse
 import com.devlabs.devlabsbackend.project.service.ProjectService
-import com.devlabs.devlabsbackend.review.service.ReviewService
+import com.devlabs.devlabsbackend.project.service.ProjectStatusService
+import com.devlabs.devlabsbackend.review.service.ReviewQueryService
 import com.devlabs.devlabsbackend.security.utils.SecurityUtils
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -17,14 +18,15 @@ import java.util.*
 @RequestMapping("/projects")
 class ProjectController(
     private val projectService: ProjectService,
-    private val reviewService: ReviewService
+    private val projectStatusService: ProjectStatusService,
+    private val reviewQueryService: ReviewQueryService
 ) {
 
     @PostMapping
     fun createProject(@RequestBody request: CreateProjectRequest): ResponseEntity<Any> {
         return try {
             val project = projectService.createProject(request)
-            ResponseEntity.status(HttpStatus.CREATED).body(project.toProjectResponse())
+            ResponseEntity.status(HttpStatus.CREATED).body(project)
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
         } catch (e: Exception) {
@@ -56,7 +58,7 @@ class ProjectController(
     fun getProjectById(@PathVariable projectId: UUID): ResponseEntity<Any> {
         return try {
             val project = projectService.getProjectById(projectId)
-            ResponseEntity.ok(project.toProjectResponse())
+            ResponseEntity.ok(project) 
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(mapOf("error" to e.message))
@@ -92,7 +94,7 @@ class ProjectController(
     ): ResponseEntity<Any> {
         return try {
             val project = projectService.updateProject(projectId, request, request.userId)
-            ResponseEntity.ok(project.toProjectResponse())
+            ResponseEntity.ok(project)
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
         } catch (e: NotFoundException) {
@@ -113,7 +115,7 @@ class ProjectController(
                 .body(mapOf("error" to "User not authenticated"))
         }
         return try {
-            projectService.approveProject(projectId, userId)
+            projectStatusService.approveProject(projectId, userId)
             ResponseEntity.ok(mapOf("success" to true, "message" to "Project approved successfully"))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
@@ -136,7 +138,7 @@ class ProjectController(
                 .body(mapOf("error" to "User not authenticated"))
         }
         return try {
-            projectService.rejectProject(projectId, userId)
+            projectStatusService.rejectProject(projectId, userId)
             ResponseEntity.ok(mapOf("success" to true, "message" to "Project rejected successfully"))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
@@ -157,7 +159,7 @@ class ProjectController(
                 .body(mapOf("error" to "User not authenticated"))
         }
         return try {
-            projectService.reProposeProject(projectId, userId)
+            projectStatusService.reProposeProject(projectId, userId)
             ResponseEntity.ok(mapOf("success" to true, "message" to "Project re-proposed successfully"))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
@@ -196,7 +198,8 @@ class ProjectController(
         val userGroup = rawUserGroup.trim().removePrefix("[/").removeSuffix("]")
 
         if(userGroup.equals("admin", ignoreCase = true) || userGroup.equals("manager", ignoreCase = true)) {
-            return getAllActiveProjects()
+            val projects = projectService.getAllActiveProjects()
+            return ResponseEntity.ok(projects)
         }
         if(userGroup.equals("faculty", ignoreCase = true)) {
             val currentUserId = SecurityUtils.getCurrentUserId()
@@ -274,7 +277,6 @@ class ProjectController(
         }
     }
 
-
     @GetMapping("/semester/{semesterId}/active")
     fun getActiveProjectsBySemester(@PathVariable semesterId: UUID): ResponseEntity<Any> {
         return try {
@@ -297,20 +299,6 @@ class ProjectController(
         }
     }
 
-    @GetMapping("/{projectId}/reviews")
-    fun getProjectReviews(@PathVariable projectId: UUID): ResponseEntity<Any> {
-        return try {
-            val response = reviewService.checkProjectReviewAssignment(projectId)
-            ResponseEntity.ok(response)
-        } catch (e: NotFoundException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(mapOf("error" to e.message))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to check project reviews: ${e.message}"))
-        }
-    }
-
     @PutMapping("/{projectId}/complete")
     fun completeProject(@PathVariable projectId: UUID): ResponseEntity<Any> {
         val userId = SecurityUtils.getCurrentUserId()
@@ -319,7 +307,7 @@ class ProjectController(
                 .body(mapOf("error" to "User not authenticated"))
         }
         return try {
-            projectService.completeProject(projectId, userId)
+            projectStatusService.completeProject(projectId, userId)
             ResponseEntity.ok(mapOf("success" to true, "message" to "Project completed successfully"))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
@@ -340,7 +328,7 @@ class ProjectController(
                 .body(mapOf("error" to "User not authenticated"))
         }
         return try {
-            projectService.revertProjectCompletion(projectId, userId)
+            projectStatusService.revertProjectCompletion(projectId, userId)
             ResponseEntity.ok(mapOf("success" to true, "message" to "Project completion reverted successfully"))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
@@ -362,7 +350,7 @@ class ProjectController(
         @RequestParam(required = false, defaultValue = "asc") sortOrder: String
     ): ResponseEntity<Any> {
         return try {
-            val projects = projectService.getArchivedProjects(userId, page, size, sortBy, sortOrder)
+            val projects = projectStatusService.getArchivedProjects(userId, page, size, sortBy, sortOrder)
             ResponseEntity.ok(projects)
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
@@ -385,7 +373,7 @@ class ProjectController(
         @RequestParam(required = false, defaultValue = "asc") sortOrder: String
     ): ResponseEntity<Any> {
         return try {
-            val projects = projectService.searchArchivedProjects(userId, query, page, size, sortBy, sortOrder)
+            val projects = projectStatusService.searchArchivedProjects(userId, query, page, size, sortBy, sortOrder)
             ResponseEntity.ok(projects)
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
@@ -395,6 +383,21 @@ class ProjectController(
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to search archived projects: ${e.message}"))
+        }
+    }
+
+    @GetMapping("/{projectId}/reviews")
+    fun getProjectReviews(@PathVariable projectId: UUID): ResponseEntity<Any> {
+        return try {
+            val userId = SecurityUtils.getCurrentUserId()
+            val response = reviewQueryService.checkProjectReviewAssignment(projectId, userId)
+            ResponseEntity.ok(response)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to check project reviews: ${e.message}"))
         }
     }
 }

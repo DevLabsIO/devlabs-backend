@@ -1,9 +1,9 @@
-package com.devlabs.devlabsbackend.kanban.domain.DTO
+package com.devlabs.devlabsbackend.kanban.domain.dto
 
 import com.devlabs.devlabsbackend.kanban.domain.KanbanBoard
 import com.devlabs.devlabsbackend.kanban.domain.KanbanColumn
 import com.devlabs.devlabsbackend.kanban.domain.KanbanTask
-import com.devlabs.devlabsbackend.user.domain.DTO.UserResponse
+import com.devlabs.devlabsbackend.user.domain.dto.UserResponse
 import com.devlabs.devlabsbackend.user.service.toUserResponse
 import java.sql.Timestamp
 import java.util.*

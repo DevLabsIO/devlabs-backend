@@ -7,15 +7,23 @@ import jakarta.persistence.*
 import java.util.*
 
 @Entity
-@Table(name = "semester")
-class Semester(    @Id
+@Table(
+    name = "semester",
+    indexes = [
+        Index(name = "idx_semester_is_active", columnList = "isActive"),
+        Index(name = "idx_semester_year", columnList = "year"),
+        Index(name = "idx_semester_name_year", columnList = "name, year")
+    ]
+)
+class Semester(
+    @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
     var name: String,
     var year: Int,
     var isActive: Boolean = true,
 
-    @OneToMany(fetch = FetchType.LAZY,cascade = [CascadeType.ALL], mappedBy = "semester")
+    @OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL], mappedBy = "semester")
     var courses: MutableList<Course> = mutableListOf(),
 
     @ManyToMany(cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
@@ -28,4 +36,4 @@ class Semester(    @Id
 
     @ManyToMany(mappedBy = "semester", fetch = FetchType.LAZY)
     var batches: MutableSet<Batch> = mutableSetOf(),
-    )
+)

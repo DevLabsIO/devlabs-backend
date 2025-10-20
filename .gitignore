@@ -45,3 +45,6 @@ out/
 .env.stagging
 .env.prod
 .env
+
+CACHING.md
+SOLUTION.md

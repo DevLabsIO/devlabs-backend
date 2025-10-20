@@ -2,23 +2,24 @@ package com.devlabs.devlabsbackend.individualscore.controller
 
 import com.devlabs.devlabsbackend.core.exception.ForbiddenException
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
-import com.devlabs.devlabsbackend.individualscore.domain.DTO.AvailableEvaluationRequest
-import com.devlabs.devlabsbackend.individualscore.domain.DTO.SubmitCourseScoreRequest
-import com.devlabs.devlabsbackend.individualscore.domain.DTO.SubmitScoreRequest
-import com.devlabs.devlabsbackend.individualscore.domain.DTO.UserIdRequest
+import com.devlabs.devlabsbackend.individualscore.domain.dto.*
+import com.devlabs.devlabsbackend.individualscore.service.EvaluationDraftService
 import com.devlabs.devlabsbackend.individualscore.service.IndividualScoreService
 import com.devlabs.devlabsbackend.project.repository.ProjectRepository
 import com.devlabs.devlabsbackend.review.repository.ReviewRepository
+import com.devlabs.devlabsbackend.security.utils.SecurityUtils
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
+import java.time.Instant
 import java.util.*
 
 @RestController
 @RequestMapping("/api/individualScore")
 class IndividualScoreController(
     private val individualScoreService: IndividualScoreService,
+    private val evaluationDraftService: EvaluationDraftService,
     private val reviewRepository: ReviewRepository,
     private val projectRepository: ProjectRepository
 ) {
@@ -88,6 +89,14 @@ class IndividualScoreController(
     ): ResponseEntity<Any> {
         return try {
             val scores = individualScoreService.submitCourseScores(request, request.userId)
+            
+            evaluationDraftService.clearDraftOnSubmission(
+                request.reviewId,
+                request.projectId,
+                request.courseId,
+                request.userId
+            )
+            
             ResponseEntity.status(HttpStatus.CREATED).body(mapOf("success" to true, "count" to scores.size))
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -104,5 +113,99 @@ class IndividualScoreController(
         }
     }
 
+    @GetMapping("/draft")
+    fun getEvaluationDraft(
+        @RequestParam reviewId: UUID,
+        @RequestParam projectId: UUID,
+        @RequestParam courseId: UUID
+    ): ResponseEntity<Any> {
+        return try {
+            val evaluatorId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
 
+            val draftResponse = evaluationDraftService.getDraft(reviewId, projectId, courseId, evaluatorId)
+            ResponseEntity.ok(draftResponse)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: ForbiddenException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to e.message))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to retrieve draft: ${e.message}"))
+        }
+    }
+
+    @PostMapping("/draft")
+    fun saveEvaluationDraft(
+        @RequestBody request: SaveEvaluationDraftRequest
+    ): ResponseEntity<Any> {
+        return try {
+            val evaluatorId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+
+            val draftResponse = evaluationDraftService.saveDraft(request, evaluatorId)
+            
+            val response = SaveDraftSuccessResponse(
+                success = true,
+                savedAt = draftResponse.draft?.lastUpdated ?: Instant.now(),
+                message = "Draft saved successfully"
+            )
+            ResponseEntity.ok(response)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: ForbiddenException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to e.message))
+        } catch (e: IllegalStateException) {
+            ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(mapOf("error" to e.message))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to save draft: ${e.message}"))
+        }
+    }
+
+    @DeleteMapping("/draft")
+    fun clearEvaluationDraft(
+        @RequestParam reviewId: UUID,
+        @RequestParam projectId: UUID,
+        @RequestParam courseId: UUID
+    ): ResponseEntity<Any> {
+        return try {
+            val evaluatorId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+
+            evaluationDraftService.clearDraft(reviewId, projectId, courseId, evaluatorId)
+            
+            val response = ClearDraftResponse(
+                success = true,
+                message = "Draft cleared successfully"
+            )
+            ResponseEntity.ok(response)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: ForbiddenException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to e.message))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to clear draft: ${e.message}"))
+        }
+    }
 }

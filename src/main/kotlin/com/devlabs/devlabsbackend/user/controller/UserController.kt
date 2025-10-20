@@ -1,12 +1,9 @@
 package com.devlabs.devlabsbackend.user.controller
 
-import com.devlabs.devlabsbackend.core.exception.NotFoundException
+import com.devlabs.devlabsbackend.core.pagination.PaginatedResponse
 import com.devlabs.devlabsbackend.security.utils.SecurityUtils
-import com.devlabs.devlabsbackend.user.domain.DTO.CreateUserRequest
-import com.devlabs.devlabsbackend.user.domain.DTO.KeycloakSyncRequest
-import com.devlabs.devlabsbackend.user.domain.DTO.KeycloakUserSyncRequest
-import com.devlabs.devlabsbackend.user.domain.DTO.UpdateUserRequest
 import com.devlabs.devlabsbackend.user.domain.Role
+import com.devlabs.devlabsbackend.user.domain.dto.*
 import com.devlabs.devlabsbackend.user.service.UserService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -14,7 +11,8 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/user")
-class UserController (private val userService: UserService){
+class UserController(private val userService: UserService) {
+
     @GetMapping
     fun getAllUsers(
         @RequestParam(required = false) role: String?,
@@ -30,7 +28,9 @@ class UserController (private val userService: UserService){
                     val paginatedUsers = userService.getAllUsersByRole(roleEnum, page, size, sort_by, sort_order)
                     ResponseEntity.ok(paginatedUsers)
                 } catch (e: IllegalArgumentException) {
-                    ResponseEntity.badRequest().body(mapOf("message" to "Invalid role: $role. Valid roles are: ${Role.values().joinToString(", ")}"))
+                    ResponseEntity.badRequest().body(
+                        mapOf("message" to "Invalid role: $role. Valid roles are: ${Role.values().joinToString(", ")}")
+                    )
                 }
             } else {
                 val paginatedUsers = userService.getAllUsers(page, size, sort_by, sort_order)
@@ -42,14 +42,14 @@ class UserController (private val userService: UserService){
         }
     }
 
-
     @GetMapping("/search")
     fun searchUsers(
         @RequestParam query: String,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
         @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String    ): ResponseEntity<Any> {
+        @RequestParam(defaultValue = "asc") sort_order: String
+    ): ResponseEntity<Any> {
         return try {
             val paginatedUsers = userService.searchUsers(query, page, size, sort_by, sort_order)
             ResponseEntity.ok(paginatedUsers)
@@ -82,8 +82,6 @@ class UserController (private val userService: UserService){
             ResponseEntity.ok(user)
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("message" to e.message))
-        } catch (e: NotFoundException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("message" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("message" to "Failed to update user: ${e.message}"))
@@ -95,12 +93,11 @@ class UserController (private val userService: UserService){
         return try {
             userService.deleteUser(userId)
             ResponseEntity.ok(mapOf("message" to "User deleted successfully"))
-        } catch (e: NotFoundException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("message" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("message" to "Failed to delete user: ${e.message}"))        }    }
-
+                .body(mapOf("message" to "Failed to delete user: ${e.message}"))
+        }
+    }
 
     @DeleteMapping("/bulk")
     fun deleteUsers(@RequestBody users: List<String>): ResponseEntity<Any> {
@@ -115,14 +112,12 @@ class UserController (private val userService: UserService){
         return try {
             val user = userService.getUserById(userId)
             ResponseEntity.ok(user)
-        } catch (e: NotFoundException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("message" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("message" to "Failed to fetch user: ${e.message}"))
         }
-    }    
-    
+    }
+
     @GetMapping("/faculty")
     fun getAllFaculty(): ResponseEntity<Any> {
         return try {
@@ -143,15 +138,15 @@ class UserController (private val userService: UserService){
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("exists" to false))
         }
-    }    
-    
-    @PostMapping("/keycloak-sync")    
+    }
+
+    @PostMapping("/keycloak-sync")
     fun createUserFromKeycloakSync(@RequestBody request: KeycloakUserSyncRequest): ResponseEntity<Any> {
         return try {
             val userIdFromToken = SecurityUtils.getCurrentUserId()
                 ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(mapOf("error" to "User not authenticated"))
-            
+
             val keycloakSyncRequest = KeycloakSyncRequest(
                 id = userIdFromToken,
                 name = request.name,
@@ -160,7 +155,7 @@ class UserController (private val userService: UserService){
                 phoneNumber = request.phoneNumber,
                 isActive = request.isActive
             )
-            
+
             val user = userService.createUserFromKeycloakSync(keycloakSyncRequest)
             ResponseEntity.status(HttpStatus.CREATED).body(user)
         } catch (e: IllegalArgumentException) {

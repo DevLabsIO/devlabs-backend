@@ -12,7 +12,16 @@ enum class Role {
 }
 
 @Entity
-@Table(name = "\"user\"")
+@Table(
+    name = "\"user\"",
+    indexes = [
+        Index(name = "idx_user_email", columnList = "email"),
+        Index(name = "idx_user_profile_id", columnList = "profileId"),
+        Index(name = "idx_user_role", columnList = "role"),
+        Index(name = "idx_user_is_active", columnList = "isActive"),
+        Index(name = "idx_user_created_at", columnList = "createdAt")
+    ]
+)
 class User (
     @Id
     val id: String? = null,

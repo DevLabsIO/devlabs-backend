@@ -1,5 +1,6 @@
 package com.devlabs.devlabsbackend.criterion.service
 
+import com.devlabs.devlabsbackend.core.config.CacheConfig
 import com.devlabs.devlabsbackend.core.exception.ForbiddenException
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
 import com.devlabs.devlabsbackend.criterion.domain.Criterion
@@ -23,7 +24,7 @@ class CriterionService(
 ) {
 
     @Transactional(readOnly = true)
-//     @Cacheable(value = [CacheConfig.RUBRICS_CACHE], key = "'criterion:' + #id")
+    @Cacheable(value = [CacheConfig.RUBRICS_CACHE], key = "'criterion:' + #id")
     fun getCriterionById(id: UUID): CriterionResponse {
         val criterion = criterionRepository.findById(id).orElseThrow {
             NotFoundException("Criterion with id $id not found")
@@ -32,9 +33,8 @@ class CriterionService(
         return criterion.toCriterionResponse()
     }
 
-
     @Transactional(readOnly = true)
-//     @Cacheable(value = [CacheConfig.RUBRICS_CACHE], key = "'rubrics-criteria:' + #rubricsId")
+    @Cacheable(value = [CacheConfig.RUBRICS_CACHE], key = "'rubrics-criteria:' + #rubricsId")
     fun getCriteriaByRubricsId(rubricsId: UUID): List<CriterionResponse> {
         val rubrics = rubricsRepository.findById(rubricsId).orElseThrow {
             NotFoundException("Rubrics with id $rubricsId not found")
@@ -44,14 +44,13 @@ class CriterionService(
         return criteria.map { it.toCriterionResponse() }
     }
 
-
     @Transactional
-    // @Caching(evict = [
-    //     CacheEvict(value = [CacheConfig.RUBRICS_CACHE], key = "'criterion:' + #id"),
-    //     CacheEvict(value = [CacheConfig.RUBRICS_CACHE], key = "'rubrics-criteria:' + @criterionRepository.findById(#id).orElse(null)?.rubrics?.id", condition = "@criterionRepository.findById(#id).isPresent()"),
-    //     CacheEvict(value = [CacheConfig.RUBRICS_CACHE], key = "'id:' + @criterionRepository.findById(#id).orElse(null)?.rubrics?.id", condition = "@criterionRepository.findById(#id).isPresent()"),
-    //     CacheEvict(value = [CacheConfig.RUBRICS_CACHE], allEntries = true)
-    // ])
+    @Caching(evict = [
+        CacheEvict(value = [CacheConfig.RUBRICS_CACHE], key = "'criterion:' + #id"),
+        CacheEvict(value = [CacheConfig.RUBRICS_LIST_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.RUBRICS_DETAIL_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.RUBRICS_CACHE], allEntries = true)
+    ])
     fun deleteCriterion(id: UUID, userId: String) {
         val user = userRepository.findById(userId).orElseThrow {
             NotFoundException("User with id $userId not found")
@@ -77,7 +76,7 @@ class CriterionService(
 
 fun Criterion.toCriterionResponse(): CriterionResponse {
     return CriterionResponse(
-        id = this.id!!,
+        id = this.id,
         name = this.name,
         description = this.description,
         maxScore = this.maxScore,

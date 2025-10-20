@@ -7,10 +7,18 @@ import java.time.Instant
 import java.util.*
 
 @Entity
-@Table(name = "kanban_task")
+@Table(
+    name = "kanban_task",
+    indexes = [
+        Index(name = "idx_kanban_task_column", columnList = "column_id"),
+        Index(name = "idx_kanban_task_created_by", columnList = "created_by"),
+        Index(name = "idx_kanban_task_position", columnList = "position"),
+        Index(name = "idx_kanban_task_column_position", columnList = "column_id, position")
+    ]
+)
 class KanbanTask(
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
     
     var title: String,
