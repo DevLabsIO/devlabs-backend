@@ -733,4 +733,11 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
         LIMIT 5
     """, nativeQuery = true)
     fun findUpcomingReviews(@Param("currentDate") currentDate: LocalDate): List<Map<String, Any>>
+    
+    @Query(value = """
+        SELECT r.id, r.name, r.start_date, r.end_date
+        FROM review r
+        WHERE r.id IN (:ids)
+    """, nativeQuery = true)
+    fun findReviewDataByIds(@Param("ids") ids: List<UUID>): List<Map<String, Any>>
 }
