@@ -232,6 +232,39 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     fun findIdsByTeam(@Param("team") team: Team, pageable: Pageable): Page<Array<Any>>
     
     @Query(value = """
+        SELECT 
+            p.id, p.title, p.description, p.objectives, p.github_url, p.status,
+            p.created_at, p.updated_at,
+            t.id as team_id, t.name as team_name,
+            (SELECT COUNT(*) FROM review_project rp WHERE rp.project_id = p.id) as review_count
+        FROM project p
+        LEFT JOIN team t ON t.id = p.team_id
+        WHERE p.team_id = :teamId
+        ORDER BY 
+            CASE WHEN :sortBy = 'title' AND :sortOrder = 'ASC' THEN p.title END ASC,
+            CASE WHEN :sortBy = 'title' AND :sortOrder = 'DESC' THEN p.title END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN p.created_at END ASC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN p.created_at END DESC,
+            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'ASC' THEN p.updated_at END ASC,
+            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'DESC' THEN p.updated_at END DESC
+        OFFSET :offset LIMIT :limit
+    """, nativeQuery = true)
+    fun findProjectsByTeamNative(
+        @Param("teamId") teamId: UUID,
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<Map<String, Any>>
+    
+    @Query(value = """
+        SELECT COUNT(p.id)
+        FROM project p
+        WHERE p.team_id = :teamId
+    """, nativeQuery = true)
+    fun countProjectsByTeam(@Param("teamId") teamId: UUID): Long
+    
+    @Query(value = """
         SELECT DISTINCT p.id
         FROM project p
         JOIN team t ON t.id = p.team_id
@@ -258,6 +291,38 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         @Param("offset") offset: Int,
         @Param("limit") limit: Int
     ): List<UUID>
+    
+    @Query(value = """
+        SELECT 
+            p.id, p.title, p.description, p.objectives, p.github_url, p.status,
+            p.created_at, p.updated_at,
+            t.id as team_id, t.name as team_name,
+            (SELECT COUNT(*) FROM review_project rp WHERE rp.project_id = p.id) as review_count
+        FROM project p
+        LEFT JOIN team t ON t.id = p.team_id
+        JOIN team_members tm ON tm.team_id = t.id
+        JOIN project_courses pc ON pc.project_id = p.id
+        WHERE tm.user_id = :userId
+          AND pc.course_id = :courseId
+        ORDER BY 
+          CASE WHEN :sortBy = 'title' AND :sortOrder = 'asc' THEN p.title END ASC,
+          CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
+          CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
+          CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC
+        OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
+    """, nativeQuery = true)
+    fun findProjectsByUserAndCourseNative(
+        @Param("userId") userId: String,
+        @Param("courseId") courseId: UUID,
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<Map<String, Any>>
     
     @Query(value = """
         SELECT COUNT(DISTINCT p.id)
@@ -297,6 +362,35 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         @Param("offset") offset: Int,
         @Param("limit") limit: Int
     ): List<UUID>
+    
+    @Query(value = """
+        SELECT 
+            p.id, p.title, p.description, p.objectives, p.github_url, p.status,
+            p.created_at, p.updated_at,
+            t.id as team_id, t.name as team_name,
+            (SELECT COUNT(*) FROM review_project rp WHERE rp.project_id = p.id) as review_count
+        FROM project p
+        LEFT JOIN team t ON t.id = p.team_id
+        JOIN team_members tm ON tm.team_id = t.id
+        WHERE tm.user_id = :userId
+        ORDER BY 
+          CASE WHEN :sortBy = 'title' AND :sortOrder = 'asc' THEN p.title END ASC,
+          CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
+          CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
+          CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC
+        OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
+    """, nativeQuery = true)
+    fun findProjectsByUserNative(
+        @Param("userId") userId: String,
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<Map<String, Any>>
     
     @Query(value = """
         SELECT COUNT(DISTINCT p.id)

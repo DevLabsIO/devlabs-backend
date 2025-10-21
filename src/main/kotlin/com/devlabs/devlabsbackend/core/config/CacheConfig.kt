@@ -3,6 +3,7 @@ package com.devlabs.devlabsbackend.core.config
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.JsonSerializer
@@ -60,11 +61,11 @@ class CacheConfig : CachingConfigurer {
                     serializers: SerializerProvider,
                     typeSer: com.fasterxml.jackson.databind.jsontype.TypeSerializer
                 ) {
-                    if (value == null) {
-                        gen.writeNull()
-                    } else {
-                        gen.writeNumber(value.value)
-                    }
+                    // Write the type wrapper and then the value
+                    val writableTypeId = typeSer.typeId(value, Year::class.java, JsonToken.VALUE_NUMBER_INT)
+                    typeSer.writeTypePrefix(gen, writableTypeId)
+                    serialize(value, gen, serializers)
+                    typeSer.writeTypeSuffix(gen, writableTypeId)
                 }
             })
             addDeserializer(Year::class.java, object : JsonDeserializer<Year>() {

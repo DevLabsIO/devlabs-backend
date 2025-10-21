@@ -79,3 +79,25 @@ fun Project.toProjectResponse(): ProjectResponse {
         updatedAt = this.updatedAt
     )
 }
+
+fun createProjectResponse(
+    projectData: Map<String, Any>,
+    teamMembers: List<UserResponse>,
+    courses: List<CourseInfo>
+): ProjectResponse {
+    return ProjectResponse(
+        id = UUID.fromString(projectData["id"].toString()),
+        title = projectData["title"].toString(),
+        description = projectData["description"].toString(),
+        objectives = projectData["objectives"]?.toString(),
+        githubUrl = projectData["github_url"]?.toString(),
+        status = ProjectStatus.values()[(projectData["status"] as Number).toInt()],
+        teamId = projectData["team_id"]?.let { UUID.fromString(it.toString()) },
+        teamName = projectData["team_name"]?.toString(),
+        teamMembers = teamMembers,
+        courses = courses,
+        reviewCount = (projectData["review_count"] as? Number)?.toInt() ?: 0,
+        createdAt = projectData["created_at"] as Timestamp,
+        updatedAt = projectData["updated_at"] as Timestamp
+    )
+}
