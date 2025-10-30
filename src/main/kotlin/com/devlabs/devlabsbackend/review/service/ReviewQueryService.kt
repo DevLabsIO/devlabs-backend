@@ -60,24 +60,25 @@ class ReviewQueryService(
             NotFoundException("User with id $userId not found")
         }
 
-        val sort = createSort(sortBy, sortOrder)
-        val pageable = PageRequest.of(page, size, sort)
+        val offset = page * size
+        
+        val reviewIds: List<UUID>
+        val totalCount: Int
 
-        val reviewIdsPage = when (user.role) {
+        when (user.role) {
             Role.ADMIN, Role.MANAGER -> {
-                reviewRepository.findAllIdsOnly(pageable)
+                reviewIds = reviewRepository.findAllReviewIds(sortBy, sortOrder, offset, size)
+                totalCount = reviewRepository.countAllReviews()
             }
             Role.FACULTY -> {
-                reviewRepository.findIdsByCoursesInstructorsContainingJpql(user, pageable)
+                reviewIds = reviewRepository.findReviewIdsForFaculty(userId, sortBy, sortOrder, offset, size)
+                totalCount = reviewRepository.countReviewsForFaculty(userId)
             }
             Role.STUDENT -> {
-                reviewRepository.findIdsByProjectsTeamMembersContainingJpql(user, pageable)
-            }
-            else -> {
-                Page.empty(pageable)
+                reviewIds = reviewRepository.findReviewIdsForStudent(userId, sortBy, sortOrder, offset, size)
+                totalCount = reviewRepository.countReviewsForStudent(userId)
             }
         }
-        val reviewIds = reviewIdsPage.content.map { it[0] as UUID }
 
         if (reviewIds.isEmpty()) {
             return PaginatedResponse(
@@ -85,8 +86,8 @@ class ReviewQueryService(
                 pagination = PaginationInfo(
                     current_page = page + 1,
                     per_page = size,
-                    total_pages = reviewIdsPage.totalPages,
-                    total_count = reviewIdsPage.totalElements.toInt()
+                    total_pages = 0,
+                    total_count = 0
                 )
             )
         }
@@ -124,13 +125,15 @@ class ReviewQueryService(
             )
         }
 
+        val totalPages = (totalCount + size - 1) / size
+
         return PaginatedResponse(
             data = reviewResponses,
             pagination = PaginationInfo(
                 current_page = page + 1,
                 per_page = size,
-                total_pages = reviewIdsPage.totalPages,
-                total_count = reviewIdsPage.totalElements.toInt()
+                total_pages = totalPages,
+                total_count = totalCount
             )
         )
     }
@@ -588,16 +591,21 @@ class ReviewQueryService(
             ?.groupBy { it["id"].toString() }
             ?.map { (projectId, rows) ->
                 val firstRow = rows.first()
+                val memberIds = firstRow["member_ids"]?.toString()?.split("|")?.filter { it.isNotEmpty() } ?: emptyList()
+                val memberNames = firstRow["member_names"]?.toString()?.split("|")?.filter { it.isNotEmpty() } ?: emptyList()
+                
+                val teamMembers = memberIds.zip(memberNames).map { (id, name) ->
+                    TeamMemberInfo(
+                        id = id,
+                        name = name
+                    )
+                }
+                
                 ProjectInfo(
                     id = UUID.fromString(projectId),
                     title = firstRow["title"].toString(),
                     teamName = firstRow["team_name"].toString(),
-                    teamMembers = rows.map { row ->
-                        TeamMemberInfo(
-                            id = row["member_id"].toString(),
-                            name = row["member_name"].toString()
-                        )
-                    }.distinctBy { it.id }
+                    teamMembers = teamMembers
                 )
             } ?: emptyList()
         
@@ -750,16 +758,21 @@ class ReviewQueryService(
             .groupBy { it["id"].toString() }
             .map { (projectId, rows) ->
                 val firstRow = rows.first()
+                val memberIds = firstRow["member_ids"]?.toString()?.split("|")?.filter { it.isNotEmpty() } ?: emptyList()
+                val memberNames = firstRow["member_names"]?.toString()?.split("|")?.filter { it.isNotEmpty() } ?: emptyList()
+                
+                val teamMembers = memberIds.zip(memberNames).map { (id, name) ->
+                    TeamMemberInfo(
+                        id = id,
+                        name = name
+                    )
+                }
+                
                 ProjectInfo(
                     id = UUID.fromString(projectId),
                     title = firstRow["title"].toString(),
                     teamName = firstRow["team_name"].toString(),
-                    teamMembers = rows.map { row ->
-                        TeamMemberInfo(
-                            id = row["member_id"].toString(),
-                            name = row["member_name"].toString()
-                        )
-                    }.distinctBy { it.id }
+                    teamMembers = teamMembers
                 )
             }
         

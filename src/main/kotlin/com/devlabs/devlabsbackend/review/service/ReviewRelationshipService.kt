@@ -221,6 +221,16 @@ class ReviewRelationshipService(
         val review = reviewRepository.findById(reviewId).orElseThrow {
             NotFoundException("Review with id $reviewId not found")
         }
+        
+        // Force Hibernate to load the collections to avoid lazy loading issues
+        review.courses.size
+        review.projects.size
+        review.projects.forEach { project ->
+            project.courses.size
+            project.courses.forEach { course ->
+                course.instructors.size
+            }
+        }
 
         when (user.role) {
             Role.ADMIN, Role.MANAGER -> {
@@ -264,6 +274,16 @@ class ReviewRelationshipService(
         val review = reviewRepository.findById(reviewId).orElseThrow {
             NotFoundException("Review with id $reviewId not found")
         }
+        
+        // Force Hibernate to load the collections to avoid lazy loading issues
+        review.courses.size
+        review.projects.size
+        review.projects.forEach { project ->
+            project.courses.size
+            project.courses.forEach { course ->
+                course.instructors.size
+            }
+        }
 
         when (user.role) {
             Role.ADMIN, Role.MANAGER -> {
@@ -305,15 +325,31 @@ class ReviewRelationshipService(
     }
 
     private fun publishFacultyCoursesForReview(review: Review, faculty: User) {
-        val facultyCourses = review.courses.filter { course ->
+        // Get courses directly assigned to the review
+        val directCourses = review.courses.filter { course ->
             course.instructors.contains(faculty)
         }
 
-        if (facultyCourses.isEmpty()) {
+        val projectCourses = review.projects.flatMap { project ->
+            project.courses.filter { course ->
+                course.instructors.contains(faculty)
+            }
+        }.toSet()
+        
+        val allFacultyCourses = (directCourses + projectCourses).toSet()
+
+        if (allFacultyCourses.isEmpty()) {
+            logger.error("Faculty ${faculty.id} (${faculty.name}) attempted to publish review ${review.id} (${review.name})")
+            logger.error("Review courses: ${review.courses.map { "${it.id}:${it.name}" }}")
+            logger.error("Review projects: ${review.projects.map { "${it.id}:${it.title}" }}")
+            logger.error("Project courses: ${review.projects.flatMap { p -> p.courses.map { c -> "${c.id}:${c.name}" } }}")
+            logger.error("Faculty instructs: ${faculty.id} - No matching courses found")
             throw ForbiddenException("Faculty can only publish courses they instruct")
         }
 
-        facultyCourses.forEach { course ->
+        logger.info("Faculty ${faculty.id} (${faculty.name}) publishing ${allFacultyCourses.size} courses for review ${review.id}")
+        allFacultyCourses.forEach { course ->
+            logger.debug("Publishing course ${course.id} (${course.name})")
             val existingPublication = reviewCoursePublicationRepository.findByReviewAndCourse(review, course)
             if (existingPublication == null) {
                 val publication = ReviewCoursePublication(
@@ -332,15 +368,31 @@ class ReviewRelationshipService(
     }
 
     private fun unpublishFacultyCoursesForReview(review: Review, faculty: User) {
-        val facultyCourses = review.courses.filter { course ->
+        // Get courses directly assigned to the review
+        val directCourses = review.courses.filter { course ->
             course.instructors.contains(faculty)
         }
+        
+        // Get courses from projects assigned to the review
+        val projectCourses = review.projects.flatMap { project ->
+            project.courses.filter { course ->
+                course.instructors.contains(faculty)
+            }
+        }.toSet()
+        
+        val allFacultyCourses = (directCourses + projectCourses).toSet()
 
-        if (facultyCourses.isEmpty()) {
+        if (allFacultyCourses.isEmpty()) {
+            logger.error("Faculty ${faculty.id} (${faculty.name}) attempted to unpublish review ${review.id} (${review.name})")
+            logger.error("Review courses: ${review.courses.map { "${it.id}:${it.name}" }}")
+            logger.error("Review projects: ${review.projects.map { "${it.id}:${it.title}" }}")
+            logger.error("Project courses: ${review.projects.flatMap { p -> p.courses.map { c -> "${c.id}:${c.name}" } }}")
             throw ForbiddenException("Faculty can only unpublish courses they instruct")
         }
 
-        facultyCourses.forEach { course ->
+        logger.info("Faculty ${faculty.id} (${faculty.name}) unpublishing ${allFacultyCourses.size} courses for review ${review.id}")
+        allFacultyCourses.forEach { course ->
+            logger.debug("Unpublishing course ${course.id} (${course.name})")
             reviewCoursePublicationRepository.deleteByReviewAndCourse(review, course)
         }
     }

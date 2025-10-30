@@ -69,44 +69,133 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     fun findAllIdsOnly(pageable: Pageable): Page<Array<Any>>
     
     @Query(value = """
-        SELECT DISTINCT r.id, r.start_date
+        SELECT r.id
         FROM review r
-        JOIN course_review cr ON r.id = cr.review_id
-        JOIN course_instructor ci ON ci.course_id = cr.course_id
-        WHERE ci.instructor_id = :#{#instructor.id}
-        ORDER BY r.start_date DESC
-    """, 
-    countQuery = """
-        SELECT COUNT(DISTINCT r.id)
-        FROM review r
-        JOIN course_review cr ON r.id = cr.review_id
-        JOIN course_instructor ci ON ci.course_id = cr.course_id
-        WHERE ci.instructor_id = :#{#instructor.id}
-    """,
-    nativeQuery = true)
-    fun findIdsByCoursesInstructorsContainingJpql(@Param("instructor") instructor: User, pageable: Pageable): Page<Array<Any>>
+        ORDER BY 
+          CASE WHEN :sortBy = 'name' AND :sortOrder = 'asc' THEN r.name END ASC,
+          CASE WHEN :sortBy = 'name' AND :sortOrder = 'desc' THEN r.name END DESC,
+          CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'asc' THEN r.end_date END ASC,
+          CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'desc' THEN r.end_date END DESC,
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'asc' THEN r.start_date END ASC,
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC
+        OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
+    """, nativeQuery = true)
+    fun findAllReviewIds(
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<UUID>
     
     @Query(value = """
-        SELECT DISTINCT r.id, r.start_date
+        SELECT COUNT(r.id)
         FROM review r
-        JOIN review_project rp ON rp.review_id = r.id
-        JOIN project p ON p.id = rp.project_id
-        JOIN team t ON t.id = p.team_id
-        JOIN team_members tm ON tm.team_id = t.id
-        WHERE tm.user_id = :#{#student.id}
-        ORDER BY r.start_date DESC
-    """,
-    countQuery = """
+    """, nativeQuery = true)
+    fun countAllReviews(): Int
+    
+    @Query(value = """
+        SELECT r.id
+        FROM (
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            WHERE EXISTS (
+                -- Reviews with courses taught by the faculty
+                SELECT 1
+                FROM course_review cr
+                JOIN course_instructor ci ON ci.course_id = cr.course_id
+                WHERE cr.review_id = r.id
+                  AND ci.instructor_id = :userId
+            )
+            OR EXISTS (
+                -- Reviews with directly assigned projects from courses taught by the faculty
+                SELECT 1
+                FROM review_project rp
+                JOIN project p ON p.id = rp.project_id
+                JOIN project_courses pc ON pc.project_id = p.id
+                JOIN course_instructor ci ON ci.course_id = pc.course_id
+                WHERE rp.review_id = r.id
+                  AND ci.instructor_id = :userId
+            )
+        ) r
+        ORDER BY 
+          CASE WHEN :sortBy = 'name' AND :sortOrder = 'asc' THEN r.name END ASC,
+          CASE WHEN :sortBy = 'name' AND :sortOrder = 'desc' THEN r.name END DESC,
+          CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'asc' THEN r.end_date END ASC,
+          CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'desc' THEN r.end_date END DESC,
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'asc' THEN r.start_date END ASC,
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC
+        OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
+    """, nativeQuery = true)
+    fun findReviewIdsForFaculty(
+        @Param("userId") userId: String,
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<UUID>
+    
+    @Query(value = """
+        SELECT COUNT(DISTINCT r.id)
+        FROM review r
+        WHERE EXISTS (
+            -- Reviews with courses taught by the faculty
+            SELECT 1
+            FROM course_review cr
+            JOIN course_instructor ci ON ci.course_id = cr.course_id
+            WHERE cr.review_id = r.id
+              AND ci.instructor_id = :userId
+        )
+        OR EXISTS (
+            -- Reviews with directly assigned projects from courses taught by the faculty
+            SELECT 1
+            FROM review_project rp
+            JOIN project p ON p.id = rp.project_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course_instructor ci ON ci.course_id = pc.course_id
+            WHERE rp.review_id = r.id
+              AND ci.instructor_id = :userId
+        )
+    """, nativeQuery = true)
+    fun countReviewsForFaculty(@Param("userId") userId: String): Int
+    
+    @Query(value = """
+        SELECT r.id
+        FROM (
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN review_project rp ON rp.review_id = r.id
+            JOIN project p ON p.id = rp.project_id
+            JOIN team t ON t.id = p.team_id
+            JOIN team_members tm ON tm.team_id = t.id
+            WHERE tm.user_id = :userId
+        ) r
+        ORDER BY 
+          CASE WHEN :sortBy = 'name' AND :sortOrder = 'asc' THEN r.name END ASC,
+          CASE WHEN :sortBy = 'name' AND :sortOrder = 'desc' THEN r.name END DESC,
+          CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'asc' THEN r.end_date END ASC,
+          CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'desc' THEN r.end_date END DESC,
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'asc' THEN r.start_date END ASC,
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC
+        OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
+    """, nativeQuery = true)
+    fun findReviewIdsForStudent(
+        @Param("userId") userId: String,
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<UUID>
+    
+    @Query(value = """
         SELECT COUNT(DISTINCT r.id)
         FROM review r
         JOIN review_project rp ON rp.review_id = r.id
         JOIN project p ON p.id = rp.project_id
         JOIN team t ON t.id = p.team_id
         JOIN team_members tm ON tm.team_id = t.id
-        WHERE tm.user_id = :#{#student.id}
-    """,
-    nativeQuery = true)
-    fun findIdsByProjectsTeamMembersContainingJpql(@Param("student") student: User, pageable: Pageable): Page<Array<Any>>
+        WHERE tm.user_id = :userId
+    """, nativeQuery = true)
+    fun countReviewsForStudent(@Param("userId") userId: String): Int
  
     @Query(value = "SELECT r.id FROM review r ORDER BY r.start_date DESC", 
            countQuery = "SELECT COUNT(r.id) FROM review r",
@@ -302,14 +391,16 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             p.title,
             t.id as team_id,
             t.name as team_name,
-            m.id as member_id,
-            m.name as member_name
+            STRING_AGG(m.id, '|') as member_ids,
+            STRING_AGG(m.name, '|') as member_names
         FROM review_project pr
         JOIN project p ON p.id = pr.project_id
         JOIN team t ON t.id = p.team_id
-        JOIN team_members tm ON tm.team_id = t.id
-        JOIN "user" m ON m.id = tm.user_id
+        LEFT JOIN team_members tm ON tm.team_id = t.id
+        LEFT JOIN "user" m ON m.id = tm.user_id
         WHERE pr.review_id IN :reviewIds
+        GROUP BY pr.review_id, p.id, p.title, t.id, t.name
+        ORDER BY pr.review_id, p.id
     """, nativeQuery = true)
     fun findProjectsByReviewIds(@Param("reviewIds") reviewIds: List<UUID>): List<Map<String, Any>>
     
@@ -319,14 +410,16 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             p.title,
             t.id as team_id,
             t.name as team_name,
-            m.id as member_id,
-            m.name as member_name
+            STRING_AGG(m.id, '|') as member_ids,
+            STRING_AGG(m.name, '|') as member_names
         FROM review_project pr
         JOIN project p ON p.id = pr.project_id
         JOIN team t ON t.id = p.team_id
-        JOIN team_members tm ON tm.team_id = t.id
-        JOIN "user" m ON m.id = tm.user_id
+        LEFT JOIN team_members tm ON tm.team_id = t.id
+        LEFT JOIN "user" m ON m.id = tm.user_id
         WHERE pr.review_id = :reviewId
+        GROUP BY p.id, p.title, t.id, t.name
+        ORDER BY p.id
     """, nativeQuery = true)
     fun findProjectsByReviewId(@Param("reviewId") reviewId: UUID): List<Map<String, Any>>
     
@@ -555,11 +648,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     @Query(value = """
         SELECT DISTINCT r.id
         FROM review r
-        JOIN course_review cr ON cr.review_id = r.id
-        JOIN course_instructor ci ON ci.course_id = cr.course_id
-        WHERE ci.instructor_id = :userId
-          AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:courseId IS NULL OR cr.course_id = :courseId)
+        WHERE (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
+          AND (:courseId IS NULL OR EXISTS (
+              SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+          ))
           AND (
               CASE :status
                   WHEN 'live' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
@@ -572,6 +664,26 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                   WHEN 'future' THEN r.start_date > :currentDate
                   ELSE TRUE
               END
+          )
+          AND (
+              EXISTS (
+                  -- Reviews with courses taught by the faculty
+                  SELECT 1
+                  FROM course_review cr
+                  JOIN course_instructor ci ON ci.course_id = cr.course_id
+                  WHERE cr.review_id = r.id
+                    AND ci.instructor_id = :userId
+              )
+              OR EXISTS (
+                  -- Reviews with directly assigned projects from courses taught by the faculty
+                  SELECT 1
+                  FROM review_project rp
+                  JOIN project p ON p.id = rp.project_id
+                  JOIN project_courses pc ON pc.project_id = p.id
+                  JOIN course_instructor ci ON ci.course_id = pc.course_id
+                  WHERE rp.review_id = r.id
+                    AND ci.instructor_id = :userId
+              )
           )
         ORDER BY 
           CASE WHEN :sortBy = 'name' AND :sortOrder = 'asc' THEN r.name END ASC,
@@ -597,11 +709,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     @Query(value = """
         SELECT COUNT(DISTINCT r.id)
         FROM review r
-        JOIN course_review cr ON cr.review_id = r.id
-        JOIN course_instructor ci ON ci.course_id = cr.course_id
-        WHERE ci.instructor_id = :userId
-          AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:courseId IS NULL OR cr.course_id = :courseId)
+        WHERE (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
+          AND (:courseId IS NULL OR EXISTS (
+              SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+          ))
           AND (
               CASE :status
                   WHEN 'live' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
@@ -614,6 +725,26 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                   WHEN 'future' THEN r.start_date > :currentDate
                   ELSE TRUE
               END
+          )
+          AND (
+              EXISTS (
+                  -- Reviews with courses taught by the faculty
+                  SELECT 1
+                  FROM course_review cr
+                  JOIN course_instructor ci ON ci.course_id = cr.course_id
+                  WHERE cr.review_id = r.id
+                    AND ci.instructor_id = :userId
+              )
+              OR EXISTS (
+                  -- Reviews with directly assigned projects from courses taught by the faculty
+                  SELECT 1
+                  FROM review_project rp
+                  JOIN project p ON p.id = rp.project_id
+                  JOIN project_courses pc ON pc.project_id = p.id
+                  JOIN course_instructor ci ON ci.course_id = pc.course_id
+                  WHERE rp.review_id = r.id
+                    AND ci.instructor_id = :userId
+              )
           )
     """, nativeQuery = true)
     fun countSearchReviewsForFaculty(

@@ -86,7 +86,7 @@ class ProjectController(
                 .body(mapOf("error" to "Failed to get projects by course: ${e.message}"))
         }
     }
-
+    
     @PutMapping("/{projectId}")
     fun updateProject(
         @PathVariable projectId: UUID,
