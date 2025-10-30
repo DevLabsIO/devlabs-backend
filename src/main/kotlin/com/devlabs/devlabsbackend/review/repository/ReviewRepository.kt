@@ -68,10 +68,44 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     @Query("SELECT r.id, r.startDate FROM Review r")
     fun findAllIdsOnly(pageable: Pageable): Page<Array<Any>>
     
-    @Query("SELECT DISTINCT r.id, r.startDate FROM Review r JOIN r.courses c JOIN c.instructors i WHERE i = :instructor")
+    @Query(value = """
+        SELECT DISTINCT r.id, r.start_date
+        FROM review r
+        JOIN course_review cr ON r.id = cr.review_id
+        JOIN course_instructor ci ON ci.course_id = cr.course_id
+        WHERE ci.instructor_id = :#{#instructor.id}
+        ORDER BY r.start_date DESC
+    """, 
+    countQuery = """
+        SELECT COUNT(DISTINCT r.id)
+        FROM review r
+        JOIN course_review cr ON r.id = cr.review_id
+        JOIN course_instructor ci ON ci.course_id = cr.course_id
+        WHERE ci.instructor_id = :#{#instructor.id}
+    """,
+    nativeQuery = true)
     fun findIdsByCoursesInstructorsContainingJpql(@Param("instructor") instructor: User, pageable: Pageable): Page<Array<Any>>
     
-    @Query("SELECT DISTINCT r.id, r.startDate FROM Review r JOIN r.projects p JOIN p.team t JOIN t.members m WHERE m = :student")
+    @Query(value = """
+        SELECT DISTINCT r.id, r.start_date
+        FROM review r
+        JOIN review_project rp ON rp.review_id = r.id
+        JOIN project p ON p.id = rp.project_id
+        JOIN team t ON t.id = p.team_id
+        JOIN team_members tm ON tm.team_id = t.id
+        WHERE tm.user_id = :#{#student.id}
+        ORDER BY r.start_date DESC
+    """,
+    countQuery = """
+        SELECT COUNT(DISTINCT r.id)
+        FROM review r
+        JOIN review_project rp ON rp.review_id = r.id
+        JOIN project p ON p.id = rp.project_id
+        JOIN team t ON t.id = p.team_id
+        JOIN team_members tm ON tm.team_id = t.id
+        WHERE tm.user_id = :#{#student.id}
+    """,
+    nativeQuery = true)
     fun findIdsByProjectsTeamMembersContainingJpql(@Param("student") student: User, pageable: Pageable): Page<Array<Any>>
  
     @Query(value = "SELECT r.id FROM review r ORDER BY r.start_date DESC", 
