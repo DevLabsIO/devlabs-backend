@@ -18,14 +18,17 @@ class UserController(private val userService: UserService) {
         @RequestParam(required = false) role: String?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(required = false) sort_by: String?,
+        @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
+            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
+            
             if (role != null) {
                 try {
                     val roleEnum = Role.valueOf(role.uppercase())
-                    val paginatedUsers = userService.getAllUsersByRole(roleEnum, page, size, sort_by, sort_order)
+                    val paginatedUsers = userService.getAllUsersByRole(roleEnum, page, size, actualSortBy, actualSortOrder)
                     ResponseEntity.ok(paginatedUsers)
                 } catch (e: IllegalArgumentException) {
                     ResponseEntity.badRequest().body(
@@ -33,7 +36,7 @@ class UserController(private val userService: UserService) {
                     )
                 }
             } else {
-                val paginatedUsers = userService.getAllUsers(page, size, sort_by, sort_order)
+                val paginatedUsers = userService.getAllUsers(page, size, actualSortBy, actualSortOrder)
                 ResponseEntity.ok(paginatedUsers)
             }
         } catch (e: Exception) {
@@ -47,11 +50,13 @@ class UserController(private val userService: UserService) {
         @RequestParam query: String,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(required = false) sort_by: String?,
+        @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
-            val paginatedUsers = userService.searchUsers(query, page, size, sort_by, sort_order)
+            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
+            val paginatedUsers = userService.searchUsers(query, page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(paginatedUsers)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

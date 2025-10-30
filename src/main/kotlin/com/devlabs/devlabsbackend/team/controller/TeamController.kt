@@ -34,11 +34,13 @@ class TeamController(
     fun getAllTeams(
         @RequestParam(defaultValue = "0") page: Int, 
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(required = false) sort_by: String?,
+        @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
-            val teams = teamService.getAllTeams(page, size, sort_by, sort_order)
+            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
+            val teams = teamService.getAllTeams(page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(teams)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -98,11 +100,13 @@ class TeamController(
         @PathVariable userId: String, 
         @RequestParam(defaultValue = "0") page: Int, 
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(required = false) sort_by: String?,
+        @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
-            val teams = teamService.getTeamsByUser(userId, page, size, sort_by, sort_order)
+            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
+            val teams = teamService.getTeamsByUser(userId, page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(teams)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -130,11 +134,13 @@ class TeamController(
         @RequestParam query: String,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(required = false) sort_by: String?,
+        @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
-            val teams = teamService.searchTeamsByUser(userId, query, page, size, sort_by, sort_order)
+            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
+            val teams = teamService.searchTeamsByUser(userId, query, page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(teams)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)

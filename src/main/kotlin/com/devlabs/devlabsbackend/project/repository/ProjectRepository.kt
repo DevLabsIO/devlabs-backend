@@ -471,7 +471,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     fun findByStatusWithRelationsOrderByUpdatedAtDesc(@Param("status") status: ProjectStatus, pageable: Pageable): Page<Project>
     
     @Query("""
-        SELECT DISTINCT p.id, p.updatedAt FROM Project p 
+        SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
         AND EXISTS (SELECT 1 FROM Course course JOIN course.instructors instructor WHERE instructor = :faculty AND course MEMBER OF p.courses)
         ORDER BY p.updatedAt DESC
@@ -493,7 +493,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     fun findCompletedProjectsByFacultyWithRelations(@Param("faculty") faculty: User, pageable: Pageable): Page<Project>
     
     @Query("""
-        SELECT DISTINCT p.id, p.updatedAt FROM Project p 
+        SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
         AND EXISTS (SELECT 1 FROM Team team JOIN team.members member WHERE member = :student AND team = p.team)
         ORDER BY p.updatedAt DESC
@@ -515,7 +515,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     fun findCompletedProjectsByStudentWithRelations(@Param("student") student: User, pageable: Pageable): Page<Project>
     
     @Query("""
-        SELECT DISTINCT p.id, p.updatedAt FROM Project p 
+        SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
         AND LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%'))
         ORDER BY p.updatedAt DESC
@@ -537,7 +537,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     fun searchCompletedProjectsWithRelations(@Param("query") query: String, pageable: Pageable): Page<Project>
     
     @Query("""
-        SELECT DISTINCT p.id, p.updatedAt FROM Project p 
+        SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
         AND LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%'))
         AND EXISTS (SELECT 1 FROM Course course JOIN course.instructors instructor WHERE instructor = :faculty AND course MEMBER OF p.courses)
@@ -561,7 +561,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     fun searchCompletedProjectsByFacultyWithRelations(@Param("faculty") faculty: User, @Param("query") query: String, pageable: Pageable): Page<Project>
     
     @Query("""
-        SELECT DISTINCT p.id, p.updatedAt FROM Project p 
+        SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
         AND LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%'))
         AND EXISTS (SELECT 1 FROM Team team JOIN team.members member WHERE member = :student AND team = p.team)

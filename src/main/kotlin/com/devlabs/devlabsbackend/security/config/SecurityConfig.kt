@@ -4,6 +4,7 @@ import com.devlabs.devlabsbackend.security.utils.JwtAuthenticationEntryPoint
 import com.devlabs.devlabsbackend.security.utils.KeycloakJwtTokenConverter
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.cache.concurrent.ConcurrentMapCache
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -12,17 +13,31 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.oauth2.jwt.JwtDecoder
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 @Configuration
 @Profile("dev")
 @EnableWebSecurity
 @EnableMethodSecurity
-class DevSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint) {
+class DevSecurityConfig(
+    @Autowired private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint,
+    @Value("\${spring.security.oauth2.resourceserver.jwt.issuer-uri}") private val issuerUri: String
+) {
+
+    @Bean
+    fun jwtDecoderDev(): JwtDecoder {
+        val jwkSetUri = "$issuerUri/protocol/openid-connect/certs"
+        // Use cached JWK decoder - reduces calls to Keycloak for public keys
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build()
+    }
 
     @Bean
     fun keycloakJwtTokenConverterDev(): KeycloakJwtTokenConverter {
@@ -45,6 +60,7 @@ class DevSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtA
             }
             .oauth2ResourceServer { oauth2 ->
                 oauth2.jwt { jwt ->
+                    jwt.decoder(jwtDecoderDev())
                     jwt.jwtAuthenticationConverter(keycloakJwtTokenConverterDev())
                 }
                 oauth2.authenticationEntryPoint(jwtAuthenticationEntryPoint)
@@ -74,10 +90,20 @@ class DevSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtA
 @Profile("prod")
 @EnableWebSecurity
 @EnableMethodSecurity
-class ProdSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint) {
+class ProdSecurityConfig(
+    @Autowired private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint,
+    @Value("\${spring.security.oauth2.resourceserver.jwt.issuer-uri}") private val issuerUri: String
+) {
 
     @Value("\${cors.allowed-origins:}")
     lateinit var allowedOrigins: String
+
+    @Bean
+    fun jwtDecoderProd(): JwtDecoder {
+        val jwkSetUri = "$issuerUri/protocol/openid-connect/certs"
+        // Use cached JWK decoder - reduces calls to Keycloak for public keys
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build()
+    }
 
     @Bean
     fun keycloakJwtTokenConverter(): KeycloakJwtTokenConverter {
@@ -99,6 +125,7 @@ class ProdSecurityConfig(@Autowired private val jwtAuthenticationEntryPoint: Jwt
             }
             .oauth2ResourceServer { oauth2 ->
                 oauth2.jwt { jwt ->
+                    jwt.decoder(jwtDecoderProd())
                     jwt.jwtAuthenticationConverter(keycloakJwtTokenConverter())
                 }
                 oauth2.authenticationEntryPoint(jwtAuthenticationEntryPoint)

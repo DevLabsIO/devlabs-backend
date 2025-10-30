@@ -20,11 +20,13 @@ class RubricsController(
     fun getAllRubrics(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "createdAt") sortBy: String,
-        @RequestParam(defaultValue = "desc") sortDirection: String
+        @RequestParam(required = false) sortBy: String?,
+        @RequestParam(required = false) sortDirection: String?
     ): ResponseEntity<Any> {
         return try {
-            val response = rubricsService.getAllRubrics(page, size, sortBy, sortDirection)
+            val actualSortBy = if (sortBy.isNullOrBlank()) "createdAt" else sortBy
+            val actualSortDirection = if (sortDirection.isNullOrBlank()) "desc" else sortDirection
+            val response = rubricsService.getAllRubrics(page, size, actualSortBy, actualSortDirection)
             ResponseEntity.ok(response)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -37,11 +39,13 @@ class RubricsController(
         @RequestParam query: String,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "createdAt") sortBy: String,
-        @RequestParam(defaultValue = "desc") sortDirection: String
+        @RequestParam(required = false) sortBy: String?,
+        @RequestParam(required = false) sortDirection: String?
     ): ResponseEntity<Any> {
         return try {
-            val response = rubricsService.searchRubrics(query, page, size, sortBy, sortDirection)
+            val actualSortBy = if (sortBy.isNullOrBlank()) "createdAt" else sortBy
+            val actualSortDirection = if (sortDirection.isNullOrBlank()) "desc" else sortDirection
+            val response = rubricsService.searchRubrics(query, page, size, actualSortBy, actualSortDirection)
             ResponseEntity.ok(response)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -68,11 +72,13 @@ class RubricsController(
         @PathVariable userId: String,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "createdAt") sortBy: String,
-        @RequestParam(defaultValue = "desc") sortDirection: String
+        @RequestParam(required = false) sortBy: String?,
+        @RequestParam(required = false) sortDirection: String?
     ): ResponseEntity<Any> {
         return try {
-            val response = rubricsService.getRubricsByUser(userId, page, size, sortBy, sortDirection)
+            val actualSortBy = if (sortBy.isNullOrBlank()) "createdAt" else sortBy
+            val actualSortDirection = if (sortDirection.isNullOrBlank()) "desc" else sortDirection
+            val response = rubricsService.getRubricsByUser(userId, page, size, actualSortBy, actualSortDirection)
             ResponseEntity.ok(response)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -87,11 +93,13 @@ class RubricsController(
     fun getSharedRubrics(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "createdAt") sortBy: String,
-        @RequestParam(defaultValue = "desc") sortDirection: String
+        @RequestParam(required = false) sortBy: String?,
+        @RequestParam(required = false) sortDirection: String?
     ): ResponseEntity<Any> {
         return try {
-            val response = rubricsService.getSharedRubrics(page, size, sortBy, sortDirection)
+            val actualSortBy = if (sortBy.isNullOrBlank()) "createdAt" else sortBy
+            val actualSortDirection = if (sortDirection.isNullOrBlank()) "desc" else sortDirection
+            val response = rubricsService.getSharedRubrics(page, size, actualSortBy, actualSortDirection)
             ResponseEntity.ok(response)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

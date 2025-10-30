@@ -54,7 +54,7 @@ class CacheConfig : CachingConfigurer {
                         gen.writeNumber(value.value)
                     }
                 }
-                
+
                 override fun serializeWithType(
                     value: Year?,
                     gen: JsonGenerator,

@@ -192,6 +192,12 @@ class ReviewCrudService(
     }
 
     @Transactional
+    @Caching(evict = [
+        CacheEvict(value = ["review-detail"], allEntries = true),
+        CacheEvict(value = ["reviews"], allEntries = true),
+        CacheEvict(value = [CacheConfig.REVIEW_DETAIL_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.REVIEWS_CACHE], allEntries = true)
+    ])
     fun addFileToReview(reviewId: UUID, url: String) {
         val review = reviewRepository.findById(reviewId).orElseThrow {
             NotFoundException("Review with id $reviewId not found")
@@ -206,6 +212,12 @@ class ReviewCrudService(
     }
 
     @Transactional
+    @Caching(evict = [
+        CacheEvict(value = ["review-detail"], allEntries = true),
+        CacheEvict(value = ["reviews"], allEntries = true),
+        CacheEvict(value = [CacheConfig.REVIEW_DETAIL_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.REVIEWS_CACHE], allEntries = true)
+    ])
     fun removeFileFromReview(reviewId: UUID, url: String) {
         val review = reviewRepository.findById(reviewId).orElseThrow {
             NotFoundException("Review with id $reviewId not found")

@@ -31,13 +31,8 @@ class EvaluationDraftService(
     private val cacheManager: CacheManager
 ) {
 
-    @Transactional(readOnly = true)
+//    @Transactional(readOnly = true)
     fun getDraft(reviewId: UUID, projectId: UUID, courseId: UUID, evaluatorId: String): EvaluationDraftResponse {
-        val isSubmitted = checkIfEvaluationSubmitted(reviewId, projectId, courseId, evaluatorId)
-        if (isSubmitted) {
-            return EvaluationDraftResponse(exists = false, draft = null)
-        }
-        
         val cacheKey = "draft-$reviewId-$projectId-$courseId-$evaluatorId"
         val cache = cacheManager.getCache(CacheConfig.EVALUATION_DRAFTS_CACHE)
         val cachedValue = cache?.get(cacheKey, EvaluationDraftResponse::class.java)
@@ -45,17 +40,11 @@ class EvaluationDraftService(
         if (cachedValue != null) {
             return cachedValue
         }
-        
         return EvaluationDraftResponse(exists = false, draft = null)
     }
 
-    @Transactional
+//    @Transactional
     fun saveDraft(request: SaveEvaluationDraftRequest, evaluatorId: String): EvaluationDraftResponse {
-        val isSubmitted = checkIfEvaluationSubmitted(request.reviewId, request.projectId, request.courseId, evaluatorId)
-        if (isSubmitted) {
-            throw IllegalStateException("Cannot save draft for already submitted evaluation")
-        }
-
         val draft = EvaluationDraft(
             reviewId = request.reviewId,
             projectId = request.projectId,
@@ -75,7 +64,7 @@ class EvaluationDraftService(
         return response
     }
 
-    @Transactional
+//    @Transactional
     @CacheEvict(
         value = [CacheConfig.EVALUATION_DRAFTS_CACHE],
         key = "'draft-' + #reviewId + '-' + #projectId + '-' + #courseId + '-' + #evaluatorId"
@@ -84,7 +73,7 @@ class EvaluationDraftService(
         validateAccess(reviewId, projectId, courseId, evaluatorId)
     }
 
-    @Transactional
+//    @Transactional
     @CacheEvict(
         value = [CacheConfig.EVALUATION_DRAFTS_CACHE],
         key = "'draft-' + #reviewId + '-' + #projectId + '-' + #courseId + '-' + #evaluatorId"

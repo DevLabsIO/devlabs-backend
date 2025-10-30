@@ -110,15 +110,18 @@ class ReviewController(
     fun getReviewsForUser(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "startDate") sortBy: String,
-        @RequestParam(defaultValue = "desc") sortOrder: String
+        @RequestParam(required = false) sortBy: String?,
+        @RequestParam(required = false) sortOrder: String?
     ): ResponseEntity<Any> {
         return try {
             val userId = SecurityUtils.getCurrentUserId()
                 ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(mapOf("error" to "User not authenticated"))
             
-            val reviews = reviewService.getReviewsForUser(userId, page, size, sortBy, sortOrder)
+            val actualSortBy = if (sortBy.isNullOrBlank()) "startDate" else sortBy
+            val actualSortOrder = if (sortOrder.isNullOrBlank()) "desc" else sortOrder
+            
+            val reviews = reviewService.getReviewsForUser(userId, page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(reviews)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -157,15 +160,19 @@ class ReviewController(
         @RequestParam(required = false) status: String?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "startDate") sortBy: String,
-        @RequestParam(defaultValue = "desc") sortOrder: String
+        @RequestParam(required = false) sortBy: String?,
+        @RequestParam(required = false) sortOrder: String?
     ): ResponseEntity<Any> {
         return try {
             val userId = SecurityUtils.getCurrentUserId()
                 ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(mapOf("error" to "User not authenticated"))
             
-            val reviews = reviewService.searchReviews(userId, name, courseId, status, page, size, sortBy, sortOrder)
+            // Normalize empty strings to use defaults
+            val actualSortBy = if (sortBy.isNullOrBlank()) "startDate" else sortBy
+            val actualSortOrder = if (sortOrder.isNullOrBlank()) "desc" else sortOrder
+            
+            val reviews = reviewService.searchReviews(userId, name, courseId, status, page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(reviews)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)

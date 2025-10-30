@@ -47,7 +47,7 @@ class KeycloakJwtTokenConverter(
             ?: jwt.getClaimAsString(JwtClaimNames.SUB)
             ?: "unknown"
 
-        logger.info("Authenticated user: $principalName with authorities: $authorities")
+        logger.debug("Authenticated user: $principalName with authorities: $authorities")
 
         return JwtAuthenticationToken(jwt, authorities, principalName)
     }
