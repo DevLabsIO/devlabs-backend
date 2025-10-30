@@ -54,6 +54,7 @@ class CourseService(
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.COURSE_BATCHES_CACHE, CacheConfig.COURSE_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_LIST_CACHE, CacheConfig.COURSES_ACTIVE_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -69,6 +70,7 @@ class CourseService(
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.COURSE_BATCHES_CACHE, CacheConfig.COURSE_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_LIST_CACHE, CacheConfig.COURSES_ACTIVE_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -84,7 +86,8 @@ class CourseService(
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.COURSE_STUDENTS_CACHE, CacheConfig.COURSE_DETAIL_CACHE], allEntries = true),
-            CacheEvict(value = [CacheConfig.COURSES_USER_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_USER_CACHE, CacheConfig.COURSES_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -100,7 +103,8 @@ class CourseService(
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.COURSE_STUDENTS_CACHE, CacheConfig.COURSE_DETAIL_CACHE], allEntries = true),
-            CacheEvict(value = [CacheConfig.COURSES_USER_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_USER_CACHE, CacheConfig.COURSES_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -123,7 +127,7 @@ class CourseService(
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.COURSE_INSTRUCTORS_CACHE, CacheConfig.COURSE_DETAIL_CACHE], allEntries = true),
-            CacheEvict(value = [CacheConfig.COURSES_ACTIVE_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_ACTIVE_CACHE, CacheConfig.COURSES_USER_CACHE, CacheConfig.COURSES_LIST_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER], allEntries = true)
         ]
     )
@@ -139,7 +143,7 @@ class CourseService(
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.COURSE_INSTRUCTORS_CACHE, CacheConfig.COURSE_DETAIL_CACHE], allEntries = true),
-            CacheEvict(value = [CacheConfig.COURSES_ACTIVE_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_ACTIVE_CACHE, CacheConfig.COURSES_USER_CACHE, CacheConfig.COURSES_LIST_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER], allEntries = true)
         ]
     )
@@ -307,6 +311,10 @@ class CourseService(
         }.sortedBy { it.startDate }
     }
 
+    @Cacheable(
+        value = [CacheConfig.COURSES_LIST_CACHE],
+        key = "'courses-user-' + #currentUser.id + '-' + #page + '-' + #size + '-' + #sortBy + '-' + #sortOrder"
+    )
     @Transactional(readOnly = true)
     fun getCoursesForCurrentUser(
         currentUser: User,

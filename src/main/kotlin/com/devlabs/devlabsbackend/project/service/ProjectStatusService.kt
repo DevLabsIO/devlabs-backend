@@ -11,6 +11,7 @@ import com.devlabs.devlabsbackend.project.repository.ProjectRepository
 import com.devlabs.devlabsbackend.user.domain.Role
 import com.devlabs.devlabsbackend.user.repository.UserRepository
 import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.cache.annotation.Caching
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
@@ -31,6 +32,8 @@ class ProjectStatusService(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true),
             CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -57,6 +60,8 @@ class ProjectStatusService(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true),
             CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -82,7 +87,9 @@ class ProjectStatusService(
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true),
-            CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true)
+            CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true)
         ]
     )
     @Transactional
@@ -105,6 +112,8 @@ class ProjectStatusService(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true),
             CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -127,7 +136,9 @@ class ProjectStatusService(
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true),
-            CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true)
+            CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true)
         ]
     )
     @Transactional
@@ -146,6 +157,10 @@ class ProjectStatusService(
         projectRepository.save(project)
     }
     
+    @Cacheable(
+        value = [CacheConfig.PROJECTS_ARCHIVE_CACHE],
+        key = "'archived-' + #userId + '-' + #page + '-' + #size + '-' + #sortBy + '-' + #sortOrder"
+    )
     @Transactional(readOnly = true)
     fun getArchivedProjects(userId: String, page: Int = 0, size: Int = 10, sortBy: String = "title", sortOrder: String = "asc"): PaginatedResponse<ProjectResponse> {
         val user = userRepository.findById(userId).orElseThrow {

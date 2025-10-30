@@ -149,6 +149,7 @@ class DepartmentService(
         CacheEvict(value = ["department-detail", "departments-list"], allEntries = true),
         CacheEvict(value = [CacheConfig.DEPARTMENT_DETAIL_CACHE, CacheConfig.DEPARTMENTS_LIST_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.DEPARTMENTS_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.BATCH_DETAIL_CACHE, CacheConfig.BATCHES_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN], allEntries = true)
     ])
     fun deleteDepartment(departmentId: UUID) {

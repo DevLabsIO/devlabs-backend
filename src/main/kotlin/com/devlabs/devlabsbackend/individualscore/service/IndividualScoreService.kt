@@ -163,8 +163,10 @@ class IndividualScoreService(
     @Caching(
         evict = [
             CacheEvict(value = ["individual-scores"], allEntries = true),
+            CacheEvict(value = [CacheConfig.INDIVIDUAL_SCORES_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.COURSE_DETAIL_CACHE, CacheConfig.COURSE_PERFORMANCE_CACHE], allEntries = true),
             CacheEvict(value = ["review-detail"], allEntries = true),
+            CacheEvict(value = [CacheConfig.REVIEW_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true),
             CacheEvict(value = [CacheConfig.COURSES_USER_CACHE], allEntries = true)
         ]

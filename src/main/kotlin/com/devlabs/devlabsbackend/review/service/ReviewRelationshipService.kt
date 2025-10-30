@@ -16,6 +16,7 @@ import com.devlabs.devlabsbackend.semester.repository.SemesterRepository
 import com.devlabs.devlabsbackend.user.domain.Role
 import com.devlabs.devlabsbackend.user.domain.User
 import com.devlabs.devlabsbackend.user.repository.UserRepository
+import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Caching
@@ -34,6 +35,8 @@ class ReviewRelationshipService(
     private val reviewCoursePublicationRepository: ReviewCoursePublicationRepository,
     private val reviewPublicationHelper: ReviewPublicationHelper
 ) {
+    
+    private val logger = LoggerFactory.getLogger(ReviewRelationshipService::class.java)
     
     fun addCoursesToReview(review: Review, courseIds: List<UUID>, user: User) {
         val courses = courseRepository.findAllById(courseIds)
@@ -209,6 +212,7 @@ class ReviewRelationshipService(
         CacheEvict(value = ["reviews"], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEW_DETAIL_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEWS_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.INDIVIDUAL_SCORES_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true),
         CacheEvict(value = [CacheConfig.COURSE_PERFORMANCE_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true)
@@ -262,6 +266,7 @@ class ReviewRelationshipService(
         CacheEvict(value = ["reviews"], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEW_DETAIL_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEWS_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.INDIVIDUAL_SCORES_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true),
         CacheEvict(value = [CacheConfig.COURSE_PERFORMANCE_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true)

@@ -35,6 +35,7 @@ class ReviewCrudService(
         CacheEvict(value = ["reviews"], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEW_DETAIL_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEWS_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT, CacheConfig.DASHBOARD_ADMIN], allEntries = true)
     ])
     fun createReview(request: CreateReviewRequest): ReviewResponse {
@@ -86,6 +87,7 @@ class ReviewCrudService(
         CacheEvict(value = ["reviews"], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEW_DETAIL_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEWS_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.INDIVIDUAL_SCORES_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
     ])
@@ -163,6 +165,7 @@ class ReviewCrudService(
         CacheEvict(value = ["reviews"], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEW_DETAIL_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.REVIEWS_CACHE], allEntries = true),
+        CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.INDIVIDUAL_SCORES_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT, CacheConfig.DASHBOARD_ADMIN], allEntries = true)
     ])

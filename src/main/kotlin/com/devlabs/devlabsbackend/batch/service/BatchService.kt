@@ -249,6 +249,10 @@ class BatchService(
         }
     }
 
+    @Cacheable(
+        value = [CacheConfig.BATCH_STUDENTS_CACHE],
+        key = "'batch-' + #batchId + '-students-' + #page + '-' + #size + '-' + #sortBy + '-' + #sortOrder"
+    )
     @Transactional(readOnly = true)
     fun getBatchStudents(
         batchId: UUID,
@@ -315,6 +319,7 @@ class BatchService(
         evict = [
             CacheEvict(value = ["batch-detail"], allEntries = true),
             CacheEvict(value = ["batches-list"], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.COURSE_STUDENTS_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
@@ -333,6 +338,7 @@ class BatchService(
         evict = [
             CacheEvict(value = ["batch-detail"], allEntries = true),
             CacheEvict(value = ["batches-list"], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.COURSE_STUDENTS_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]

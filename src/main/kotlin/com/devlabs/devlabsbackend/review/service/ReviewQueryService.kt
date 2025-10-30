@@ -350,7 +350,7 @@ class ReviewQueryService(
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = [CacheConfig.REVIEWS_CACHE], key = "'project_reviews_' + #projectId + '_' + (#userId ?: 'anonymous')")
+    @Cacheable(value = [CacheConfig.PROJECT_REVIEWS_CACHE], key = "'project_reviews_' + #projectId + '_' + (#userId ?: 'anonymous')")
     fun checkProjectReviewAssignment(projectId: UUID, userId: String? = null): ReviewAssignmentResponse {
         val today = LocalDate.now()
         

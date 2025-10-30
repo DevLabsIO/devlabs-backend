@@ -31,7 +31,8 @@ class TeamService(
     
     @Caching(
         evict = [
-            CacheEvict(value = [CacheConfig.TEAMS_LIST], allEntries = true)
+            CacheEvict(value = [CacheConfig.TEAMS_LIST], allEntries = true),
+            CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
     fun createTeam(teamData: CreateTeamRequest, creatorId: String): TeamResponse {
@@ -163,6 +164,7 @@ class TeamService(
             CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.TEAMS_LIST], allEntries = true),
             CacheEvict(value = [CacheConfig.PROJECTS_LIST, CacheConfig.PROJECT_DETAIL], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -200,6 +202,7 @@ class TeamService(
             CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.TEAMS_LIST], allEntries = true),
             CacheEvict(value = [CacheConfig.PROJECTS_LIST, CacheConfig.PROJECT_DETAIL], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )

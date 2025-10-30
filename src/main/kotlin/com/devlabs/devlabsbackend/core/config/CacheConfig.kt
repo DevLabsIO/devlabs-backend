@@ -108,6 +108,7 @@ class CacheConfig : CachingConfigurer {
             .withCacheConfiguration(BATCH_DETAIL_CACHE, defaultConfig.entryTtl(Duration.ofHours(1)))
             .withCacheConfiguration(BATCHES_LIST_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(30)))
             .withCacheConfiguration(BATCHES_CACHE, defaultConfig.entryTtl(Duration.ofHours(1)))
+            .withCacheConfiguration(BATCH_STUDENTS_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(30)))
             .withCacheConfiguration(SEMESTER_DETAIL_CACHE, defaultConfig.entryTtl(Duration.ofHours(2)))
             .withCacheConfiguration(SEMESTERS_LIST_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(30)))
             .withCacheConfiguration(SEMESTERS_CACHE, defaultConfig.entryTtl(Duration.ofHours(2)))
@@ -124,6 +125,8 @@ class CacheConfig : CachingConfigurer {
             .withCacheConfiguration(TEAMS_LIST, defaultConfig.entryTtl(Duration.ofMinutes(30)))
             .withCacheConfiguration(PROJECT_DETAIL, defaultConfig.entryTtl(Duration.ofHours(1)))
             .withCacheConfiguration(PROJECTS_LIST, defaultConfig.entryTtl(Duration.ofMinutes(30)))
+            .withCacheConfiguration(PROJECTS_ARCHIVE_CACHE, defaultConfig.entryTtl(Duration.ofHours(2)))
+            .withCacheConfiguration(PROJECT_REVIEWS_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(15)))
             .withCacheConfiguration(RUBRICS_DETAIL_CACHE, defaultConfig.entryTtl(Duration.ofHours(1)))
             .withCacheConfiguration(RUBRICS_LIST_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(30)))
             .withCacheConfiguration(REVIEWS_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(10)))
@@ -141,6 +144,7 @@ class CacheConfig : CachingConfigurer {
             .withCacheConfiguration(NOTIFICATIONS_UNREAD, defaultConfig.entryTtl(Duration.ofMinutes(5)))
             .withCacheConfiguration(NOTIFICATIONS_UNREAD_COUNT, defaultConfig.entryTtl(Duration.ofMinutes(5)))
             .withCacheConfiguration(EVALUATION_DRAFTS_CACHE, defaultConfig.entryTtl(Duration.ofHours(24)))
+            .withCacheConfiguration(BLOB_METADATA_CACHE, defaultConfig.entryTtl(Duration.ofHours(1)))
             .build()
     }
 
@@ -181,6 +185,7 @@ class CacheConfig : CachingConfigurer {
         const val BATCH_DETAIL_CACHE = "batch-detail"
         const val BATCHES_LIST_CACHE = "batches-list"
         const val BATCHES_CACHE = "batches"
+        const val BATCH_STUDENTS_CACHE = "batch-students"
         const val SEMESTER_DETAIL_CACHE = "semester-detail"
         const val SEMESTERS_LIST_CACHE = "semesters-list"
         const val SEMESTERS_CACHE = "semesters"
@@ -197,6 +202,8 @@ class CacheConfig : CachingConfigurer {
         const val TEAMS_LIST = "teams-list"
         const val PROJECT_DETAIL = "project-detail"
         const val PROJECTS_LIST = "projects-list"
+        const val PROJECTS_ARCHIVE_CACHE = "projects-archive"
+        const val PROJECT_REVIEWS_CACHE = "project-reviews"
         const val RUBRICS_DETAIL_CACHE = "rubrics-detail"
         const val RUBRICS_LIST_CACHE = "rubrics-list"
         const val REVIEWS_CACHE = "reviews"
@@ -214,5 +221,6 @@ class CacheConfig : CachingConfigurer {
         const val NOTIFICATIONS_UNREAD = "notifications-unread"
         const val NOTIFICATIONS_UNREAD_COUNT = "notifications-unread-count"
         const val EVALUATION_DRAFTS_CACHE = "evaluation-drafts"
+        const val BLOB_METADATA_CACHE = "blob-metadata"
     }
 }

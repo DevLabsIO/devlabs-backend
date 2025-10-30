@@ -140,7 +140,10 @@ class UserService(
             CacheEvict(value = [CacheConfig.USER_DETAIL_CACHE], key = "#userId"),
             CacheEvict(value = ["users-list"], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true),
-            CacheEvict(value = [CacheConfig.TEAMS_LIST, CacheConfig.TEAM_DETAIL_CACHE], allEntries = true)
+            CacheEvict(value = [CacheConfig.TEAMS_LIST, CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_LIST, CacheConfig.PROJECT_DETAIL], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true)
         ]
     )
     @Transactional
@@ -168,7 +171,10 @@ class UserService(
             CacheEvict(value = [CacheConfig.USER_DETAIL_CACHE], key = "#userId"),
             CacheEvict(value = ["users-list"], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true),
-            CacheEvict(value = [CacheConfig.TEAMS_LIST, CacheConfig.TEAM_DETAIL_CACHE], allEntries = true)
+            CacheEvict(value = [CacheConfig.TEAMS_LIST, CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_LIST, CacheConfig.PROJECT_DETAIL], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true)
         ]
     )
     @Transactional
@@ -183,7 +189,11 @@ class UserService(
         evict = [
             CacheEvict(value = [CacheConfig.USER_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = ["users-list"], allEntries = true),
-            CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
+            CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true),
+            CacheEvict(value = [CacheConfig.TEAMS_LIST, CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_LIST, CacheConfig.PROJECT_DETAIL], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true)
         ]
     )
     @Transactional
@@ -206,7 +216,10 @@ class UserService(
             CacheEvict(value = [CacheConfig.USER_DETAIL_CACHE], key = "#request.id"),
             CacheEvict(value = ["users-list"], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true),
-            CacheEvict(value = [CacheConfig.TEAMS_LIST, CacheConfig.TEAM_DETAIL_CACHE], allEntries = true)
+            CacheEvict(value = [CacheConfig.TEAMS_LIST, CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_LIST, CacheConfig.PROJECT_DETAIL], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true)
         ]
     )
     @Transactional

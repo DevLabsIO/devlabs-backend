@@ -42,6 +42,8 @@ class ProjectService(
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -267,6 +269,8 @@ class ProjectService(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true),
             CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
@@ -291,6 +295,9 @@ class ProjectService(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true),
             CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )

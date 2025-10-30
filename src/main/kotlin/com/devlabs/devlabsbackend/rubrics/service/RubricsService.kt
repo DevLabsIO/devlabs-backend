@@ -16,6 +16,7 @@ import com.devlabs.devlabsbackend.user.domain.Role
 import com.devlabs.devlabsbackend.user.repository.UserRepository
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Cacheable
+import org.springframework.cache.annotation.Caching
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
@@ -185,7 +186,13 @@ class RubricsService(
     }
 
     @Transactional
-    @CacheEvict(value = [CacheConfig.RUBRICS_LIST_CACHE, CacheConfig.RUBRICS_DETAIL_CACHE], allEntries = true)
+    @Caching(
+        evict = [
+            CacheEvict(value = [CacheConfig.RUBRICS_LIST_CACHE, CacheConfig.RUBRICS_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.RUBRICS_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true)
+        ]
+    )
     fun createRubrics(request: CreateRubricsRequest): RubricsDetailResponse {
         val user = userRepository.findById(request.userId).orElseThrow {
             NotFoundException("User with id ${request.userId} not found")
@@ -224,7 +231,13 @@ class RubricsService(
     }
     
     @Transactional
-    @CacheEvict(value = [CacheConfig.RUBRICS_LIST_CACHE, CacheConfig.RUBRICS_DETAIL_CACHE], allEntries = true)
+    @Caching(
+        evict = [
+            CacheEvict(value = [CacheConfig.RUBRICS_LIST_CACHE, CacheConfig.RUBRICS_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.RUBRICS_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true)
+        ]
+    )
     fun updateRubrics(rubricsId: UUID, request: UpdateRubricsRequest): RubricsDetailResponse {
         val user = userRepository.findById(request.userId).orElseThrow {
             NotFoundException("User with id ${request.userId} not found")
@@ -279,7 +292,13 @@ class RubricsService(
     }
     
     @Transactional
-    @CacheEvict(value = [CacheConfig.RUBRICS_LIST_CACHE, CacheConfig.RUBRICS_DETAIL_CACHE], allEntries = true)
+    @Caching(
+        evict = [
+            CacheEvict(value = [CacheConfig.RUBRICS_LIST_CACHE, CacheConfig.RUBRICS_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.RUBRICS_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true)
+        ]
+    )
     fun deleteRubrics(rubricsId: UUID, userId: String) {
         val user = userRepository.findById(userId).orElseThrow {
             NotFoundException("User with id $userId not found")

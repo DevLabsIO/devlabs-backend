@@ -222,6 +222,7 @@ class SemesterService(
             CacheEvict(value = ["semester-detail"], allEntries = true),
             CacheEvict(value = ["courses-list"], allEntries = true),
             CacheEvict(value = [CacheConfig.SEMESTER_DETAIL_CACHE, CacheConfig.SEMESTERS_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSE_DETAIL_CACHE, CacheConfig.COURSES_LIST_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.COURSES_ACTIVE_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
@@ -252,6 +253,7 @@ class SemesterService(
             CacheEvict(value = ["semester-detail"], allEntries = true),
             CacheEvict(value = ["courses-list"], allEntries = true),
             CacheEvict(value = [CacheConfig.SEMESTER_DETAIL_CACHE, CacheConfig.SEMESTERS_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSE_DETAIL_CACHE, CacheConfig.COURSES_LIST_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.COURSES_ACTIVE_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]

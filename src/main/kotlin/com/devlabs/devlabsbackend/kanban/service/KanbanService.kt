@@ -85,7 +85,8 @@ class KanbanService(
 
     @Caching(
         evict = [
-            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#taskId")
+            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#taskId"),
+            CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true)
         ]
     )
     fun updateTask(taskId: UUID, request: UpdateTaskRequest, userId: String): KanbanTaskResponse {
@@ -115,7 +116,8 @@ class KanbanService(
 
     @Caching(
         evict = [
-            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#taskId")
+            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#taskId"),
+            CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true)
         ]
     )
     fun moveTask(taskId: UUID, request: MoveTaskRequest, userId: String): KanbanTaskResponse {
@@ -148,7 +150,8 @@ class KanbanService(
 
     @Caching(
         evict = [
-            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#taskId")
+            CacheEvict(value = [CacheConfig.KANBAN_TASK], key = "#taskId"),
+            CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true)
         ]
     )
     fun deleteTask(taskId: UUID) {
