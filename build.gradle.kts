@@ -44,7 +44,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-rest")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
     implementation("io.minio:minio:8.5.17")
-    //VJson
+    implementation("org.keycloak:keycloak-admin-client:23.0.0")
+    implementation("org.jboss.resteasy:resteasy-client:6.2.7.Final")
+    implementation("org.jboss.resteasy:resteasy-jackson2-provider:6.2.7.Final")
     implementation("com.vladmihalcea:hibernate-types-60:2.21.1")
 }
 

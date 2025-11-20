@@ -170,4 +170,26 @@ class UserController(private val userService: UserService) {
                 .body(mapOf("message" to "Failed to create user from Keycloak sync: ${e.message}"))
         }
     }
+
+    @GetMapping("/sync-stats")
+    fun getSyncStats(): ResponseEntity<Any> {
+        return try {
+            val stats = userService.getSyncStats()
+            ResponseEntity.ok(stats)
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("message" to "Failed to fetch sync stats: ${e.message}"))
+        }
+    }
+
+    @PostMapping("/sync-from-keycloak")
+    fun syncFromKeycloak(@RequestBody request: SyncRequest): ResponseEntity<Any> {
+        return try {
+            val response = userService.syncUsersFromKeycloak(request.userIds)
+            ResponseEntity.ok(response)
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("message" to "Failed to sync users: ${e.message}"))
+        }
+    }
 }

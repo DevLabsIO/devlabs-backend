@@ -1,10 +1,13 @@
 package com.devlabs.devlabsbackend.user.service
 
 import com.devlabs.devlabsbackend.core.config.CacheConfig
+import com.devlabs.devlabsbackend.core.constants.KeycloakConstants
 import com.devlabs.devlabsbackend.core.exception.ConflictException
 import com.devlabs.devlabsbackend.core.exception.NotFoundException
 import com.devlabs.devlabsbackend.core.pagination.PaginatedResponse
 import com.devlabs.devlabsbackend.core.pagination.PaginationInfo
+import com.devlabs.devlabsbackend.keycloak.dto.KeycloakUserDto
+import com.devlabs.devlabsbackend.keycloak.service.KeycloakAdminService
 import com.devlabs.devlabsbackend.user.domain.Role
 import com.devlabs.devlabsbackend.user.domain.User
 import com.devlabs.devlabsbackend.user.domain.dto.*
@@ -20,7 +23,8 @@ import java.sql.Timestamp
 
 @Service
 class UserService(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val keycloakAdminService: KeycloakAdminService
 ) {
 
     @Transactional(readOnly = true)
@@ -267,6 +271,106 @@ class UserService(
             phoneNumber = data["phone_number"]?.toString(),
             isActive = data["is_active"] as Boolean,
             createdAt = data["created_at"] as Timestamp
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getSyncStats(): SyncStatsResponse {
+        val keycloakUsers = keycloakAdminService.getAllUsers()
+        val dbEmails = userRepository.findAll()
+            .map { it.email.lowercase() }
+            .toSet()
+
+        val unsyncedUsers = keycloakUsers
+            .filter { it.email != null && !dbEmails.contains(it.email.lowercase()) }
+            .map { mapToUnsyncedUserDto(it) }
+
+        return SyncStatsResponse(
+            keycloakUserCount = keycloakUsers.size,
+            dbUserCount = dbEmails.size,
+            unsyncedUserCount = unsyncedUsers.size,
+            unsyncedUsers = unsyncedUsers
+        )
+    }
+
+    @Caching(
+        evict = [
+            CacheEvict(value = [CacheConfig.USERS_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.PROJECTS_LIST, CacheConfig.PROJECT_DETAIL], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true)
+        ]
+    )
+    @Transactional
+    fun syncUsersFromKeycloak(userIds: List<String>?): SyncResponse {
+        val keycloakUsers = keycloakAdminService.getAllUsers()
+        
+        val usersToSync = if (userIds != null) {
+            keycloakUsers.filter { userIds.contains(it.id) }
+        } else {
+            val dbEmails = userRepository.findAll()
+                .map { it.email.lowercase() }
+                .toSet()
+            keycloakUsers.filter { it.email != null && !dbEmails.contains(it.email.lowercase()) }
+        }
+
+        if (usersToSync.isEmpty()) {
+            return SyncResponse(
+                success = true,
+                syncedCount = 0,
+                message = "No new users to sync"
+            )
+        }
+
+        val usersToInsert = usersToSync.mapNotNull { kcUser ->
+            if (kcUser.email == null) return@mapNotNull null
+            
+            val fullName = listOfNotNull(kcUser.firstName, kcUser.lastName)
+                .joinToString(" ")
+                .ifBlank { kcUser.username }
+
+            User(
+                id = kcUser.id,
+                name = fullName,
+                email = kcUser.email.lowercase(),
+                profileId = kcUser.attributes[KeycloakConstants.Attributes.PROFILE_ID]?.firstOrNull() ?: kcUser.username,
+                role = mapKeycloakRole(kcUser.groups),
+                phoneNumber = kcUser.attributes[KeycloakConstants.Attributes.PHONE_NUMBER]?.firstOrNull(),
+                isActive = kcUser.enabled
+            )
+        }
+
+        val savedUsers = userRepository.saveAll(usersToInsert)
+
+        return SyncResponse(
+            success = true,
+            syncedCount = savedUsers.size,
+            message = "Successfully synced ${savedUsers.size} users from Keycloak"
+        )
+    }
+
+    private fun mapKeycloakRole(groups: List<String>): Role {
+        return when {
+            groups.any { it.equals(KeycloakConstants.Groups.ADMIN, ignoreCase = true) } -> Role.ADMIN
+            groups.any { it.equals(KeycloakConstants.Groups.MANAGER, ignoreCase = true) } -> Role.MANAGER
+            groups.any { it.equals(KeycloakConstants.Groups.FACULTY, ignoreCase = true) } -> Role.FACULTY
+            groups.any { it.equals(KeycloakConstants.Groups.STUDENT, ignoreCase = true) } -> Role.STUDENT
+            else -> Role.STUDENT
+        }
+    }
+
+    private fun mapToUnsyncedUserDto(kcUser: KeycloakUserDto): UnsyncedUserDto {
+        return UnsyncedUserDto(
+            id = kcUser.id,
+            email = kcUser.email ?: "",
+            firstName = kcUser.firstName ?: "",
+            lastName = kcUser.lastName ?: "",
+            username = kcUser.username,
+            enabled = kcUser.enabled,
+            roles = kcUser.realmRoles,
+            groups = kcUser.groups,
+            profileId = kcUser.attributes[KeycloakConstants.Attributes.PROFILE_ID]?.firstOrNull(),
+            phoneNumber = kcUser.attributes[KeycloakConstants.Attributes.PHONE_NUMBER]?.firstOrNull()
         )
     }
 }
