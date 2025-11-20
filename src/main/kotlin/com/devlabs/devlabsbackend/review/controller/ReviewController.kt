@@ -168,7 +168,6 @@ class ReviewController(
                 ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(mapOf("error" to "User not authenticated"))
             
-            // Normalize empty strings to use defaults
             val actualSortBy = if (sortBy.isNullOrBlank()) "startDate" else sortBy
             val actualSortOrder = if (sortOrder.isNullOrBlank()) "desc" else sortOrder
             

@@ -61,7 +61,6 @@ class CacheConfig : CachingConfigurer {
                     serializers: SerializerProvider,
                     typeSer: com.fasterxml.jackson.databind.jsontype.TypeSerializer
                 ) {
-                    // Write the type wrapper and then the value
                     val writableTypeId = typeSer.typeId(value, Year::class.java, JsonToken.VALUE_NUMBER_INT)
                     typeSer.writeTypePrefix(gen, writableTypeId)
                     serialize(value, gen, serializers)

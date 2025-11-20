@@ -31,7 +31,6 @@ class EvaluationDraftService(
     private val cacheManager: CacheManager
 ) {
 
-//    @Transactional(readOnly = true)
     fun getDraft(reviewId: UUID, projectId: UUID, courseId: UUID, evaluatorId: String): EvaluationDraftResponse {
         val cacheKey = "draft-$reviewId-$projectId-$courseId-$evaluatorId"
         val cache = cacheManager.getCache(CacheConfig.EVALUATION_DRAFTS_CACHE)
@@ -43,7 +42,6 @@ class EvaluationDraftService(
         return EvaluationDraftResponse(exists = false, draft = null)
     }
 
-//    @Transactional
     fun saveDraft(request: SaveEvaluationDraftRequest, evaluatorId: String): EvaluationDraftResponse {
         val draft = EvaluationDraft(
             reviewId = request.reviewId,
@@ -64,7 +62,6 @@ class EvaluationDraftService(
         return response
     }
 
-//    @Transactional
     @CacheEvict(
         value = [CacheConfig.EVALUATION_DRAFTS_CACHE],
         key = "'draft-' + #reviewId + '-' + #projectId + '-' + #courseId + '-' + #evaluatorId"
@@ -73,7 +70,6 @@ class EvaluationDraftService(
         validateAccess(reviewId, projectId, courseId, evaluatorId)
     }
 
-//    @Transactional
     @CacheEvict(
         value = [CacheConfig.EVALUATION_DRAFTS_CACHE],
         key = "'draft-' + #reviewId + '-' + #projectId + '-' + #courseId + '-' + #evaluatorId"

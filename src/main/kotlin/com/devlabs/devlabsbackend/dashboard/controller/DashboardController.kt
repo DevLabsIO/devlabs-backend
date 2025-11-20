@@ -68,11 +68,6 @@ class DashboardController(
         return ResponseEntity.ok(dashboard)
     }
 
-    /**
-     * TEMPORARY: Clear all dashboard caches
-     * Use this after config changes or when you see "missing type id property '@class'" errors
-     * Remove this endpoint in production or secure it properly!
-     */
     @DeleteMapping("/cache/clear")
     fun clearDashboardCaches(): ResponseEntity<Map<String, Any>> {
         val rawUserGroup = SecurityUtils.getCurrentJwtClaim("groups")

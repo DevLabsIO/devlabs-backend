@@ -35,7 +35,6 @@ class DevSecurityConfig(
     @Bean
     fun jwtDecoderDev(): JwtDecoder {
         val jwkSetUri = "$issuerUri/protocol/openid-connect/certs"
-        // Use cached JWK decoder - reduces calls to Keycloak for public keys
         return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build()
     }
 
@@ -101,7 +100,6 @@ class ProdSecurityConfig(
     @Bean
     fun jwtDecoderProd(): JwtDecoder {
         val jwkSetUri = "$issuerUri/protocol/openid-connect/certs"
-        // Use cached JWK decoder - reduces calls to Keycloak for public keys
         return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build()
     }
 

@@ -226,7 +226,6 @@ class ReviewRelationshipService(
             NotFoundException("Review with id $reviewId not found")
         }
         
-        // Force Hibernate to load the collections to avoid lazy loading issues
         review.courses.size
         review.projects.size
         review.projects.forEach { project ->
@@ -280,7 +279,6 @@ class ReviewRelationshipService(
             NotFoundException("Review with id $reviewId not found")
         }
         
-        // Force Hibernate to load the collections to avoid lazy loading issues
         review.courses.size
         review.projects.size
         review.projects.forEach { project ->
@@ -330,7 +328,6 @@ class ReviewRelationshipService(
     }
 
     private fun publishFacultyCoursesForReview(review: Review, faculty: User) {
-        // Get courses directly assigned to the review
         val directCourses = review.courses.filter { course ->
             course.instructors.contains(faculty)
         }
@@ -373,12 +370,10 @@ class ReviewRelationshipService(
     }
 
     private fun unpublishFacultyCoursesForReview(review: Review, faculty: User) {
-        // Get courses directly assigned to the review
         val directCourses = review.courses.filter { course ->
             course.instructors.contains(faculty)
         }
         
-        // Get courses from projects assigned to the review
         val projectCourses = review.projects.flatMap { project ->
             project.courses.filter { course ->
                 course.instructors.contains(faculty)
