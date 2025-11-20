@@ -193,6 +193,21 @@ interface ReviewCoursePublicationRepository : JpaRepository<ReviewCoursePublicat
     """, nativeQuery = true)
     fun findRecentPublicationsNative(): List<Map<String, Any>>
     
+    @Query(value = """
+        SELECT DISTINCT 
+            r.id as review_id,
+            r.name as review_name,
+            rcp.published_at
+        FROM review_course_publication rcp
+        JOIN review r ON r.id = rcp.review_id
+        JOIN course c ON c.id = rcp.course_id
+        JOIN semester s ON s.id = c.semester_id
+        WHERE s.is_active = true
+        ORDER BY rcp.published_at DESC
+        LIMIT 5
+    """, nativeQuery = true)
+    fun findRecentPublicationsForActiveSemesters(): List<Map<String, Any>>
+    
 
     @Query(value = """
         SELECT DISTINCT cr.course_id

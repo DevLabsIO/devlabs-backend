@@ -193,6 +193,41 @@ data class ReviewResultsRequest(
     val projectId: UUID
 )
 
+data class ReviewProjectsResponse(
+    val reviewId: UUID,
+    val reviewName: String,
+    val projects: List<ReviewProjectInfo>,
+    val teams: List<TeamFilterInfo>,
+    val batches: List<BatchFilterInfo>,
+    val courses: List<CourseFilterInfo>
+)
+
+data class ReviewProjectInfo(
+    val projectId: UUID,
+    val projectTitle: String,
+    val teamId: UUID,
+    val teamName: String,
+    val teamMembers: List<TeamMemberInfo>,
+    val batchIds: List<UUID>,
+    val courseIds: List<UUID>
+)
+
+data class TeamFilterInfo(
+    val teamId: UUID,
+    val teamName: String
+)
+
+data class BatchFilterInfo(
+    val batchId: UUID,
+    val batchName: String
+)
+
+data class CourseFilterInfo(
+    val courseId: UUID,
+    val courseName: String,
+    val courseCode: String
+)
+
 fun ReviewListDTO.toReviewResponse(): ReviewResponse {
     return ReviewResponse(
         id = this.id,

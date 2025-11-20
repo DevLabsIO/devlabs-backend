@@ -49,6 +49,15 @@ class ReviewService(
 
     fun getReviewResults(reviewId: UUID, projectId: UUID, userId: String): ReviewResultsResponse =
         reviewQueryService.getReviewResults(reviewId, projectId, userId)
+    
+    fun getReviewProjectsWithFilters(
+        reviewId: UUID,
+        userId: String,
+        teamId: UUID?,
+        batchId: UUID?,
+        courseId: UUID?
+    ): ReviewProjectsResponse =
+        reviewQueryService.getReviewProjectsWithFilters(reviewId, userId, teamId, batchId, courseId)
 
     fun createReview(request: CreateReviewRequest): ReviewResponse =
         reviewCrudService.createReview(request)

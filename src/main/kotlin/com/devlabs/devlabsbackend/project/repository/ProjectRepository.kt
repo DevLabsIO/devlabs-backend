@@ -580,4 +580,26 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     
     @Query("SELECT COUNT(DISTINCT p.id) FROM Project p WHERE p.status IN :statuses")
     fun countByStatusIn(@Param("statuses") statuses: List<ProjectStatus>): Long
+    
+    @Query(value = """
+        SELECT COUNT(DISTINCT p.id)
+        FROM project p
+        JOIN project_courses pc ON pc.project_id = p.id
+        JOIN course c ON c.id = pc.course_id
+        JOIN semester s ON s.id = c.semester_id
+        WHERE s.is_active = true
+    """, nativeQuery = true)
+    fun countByActiveSemesters(): Long
+    
+    @Query(value = """
+        SELECT COUNT(DISTINCT p.id)
+        FROM project p
+        JOIN project_courses pc ON pc.project_id = p.id
+        JOIN course c ON c.id = pc.course_id
+        JOIN semester s ON s.id = c.semester_id
+        WHERE s.is_active = true
+        AND p.status IN (0, 1)
+    """, nativeQuery = true)
+    fun countActiveProjectsByActiveSemesters(): Long
 }
+

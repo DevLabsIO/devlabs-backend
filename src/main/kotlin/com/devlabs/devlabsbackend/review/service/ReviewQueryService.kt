@@ -815,4 +815,86 @@ class ReviewQueryService(
             isPublished = isPublished
         )
     }
+    
+    @Transactional(readOnly = true)
+    fun getReviewProjectsWithFilters(
+        reviewId: UUID,
+        userId: String,
+        teamId: UUID?,
+        batchId: UUID?,
+        courseId: UUID?
+    ): ReviewProjectsResponse {
+        val user = userRepository.findById(userId).orElseThrow {
+            NotFoundException("User with id $userId not found")
+        }
+        
+        val hasAccess = reviewRepository.hasUserAccessToReview(reviewId, userId, user.role.name)
+        if (!hasAccess) {
+            throw ForbiddenException("You don't have access to this review")
+        }
+        
+        val review = reviewRepository.findById(reviewId).orElseThrow {
+            NotFoundException("Review with id $reviewId not found")
+        }
+        
+        val teamIdStr = teamId?.toString()
+        val batchIdStr = batchId?.toString()
+        val courseIdStr = courseId?.toString()
+        
+        val projectsData = reviewRepository.findFilteredProjectsByReviewId(
+            reviewId, userId, user.role.name, teamIdStr, batchIdStr, courseIdStr
+        )
+        
+        val projects = projectsData.map { row ->
+            val memberIds = row["member_ids"]?.toString()?.split("|")?.filter { it.isNotEmpty() } ?: emptyList()
+            val memberNames = row["member_names"]?.toString()?.split("|")?.filter { it.isNotEmpty() } ?: emptyList()
+            val batchIdsStr = row["batch_ids"]?.toString()?.split("|")?.filter { it.isNotEmpty() } ?: emptyList()
+            val courseIdsStr = row["course_ids"]?.toString()?.split("|")?.filter { it.isNotEmpty() } ?: emptyList()
+            
+            val teamMembers = memberIds.zip(memberNames).map { (id, name) ->
+                TeamMemberInfo(id = id, name = name)
+            }
+            
+            ReviewProjectInfo(
+                projectId = UUID.fromString(row["project_id"].toString()),
+                projectTitle = row["project_title"].toString(),
+                teamId = UUID.fromString(row["team_id"].toString()),
+                teamName = row["team_name"].toString(),
+                teamMembers = teamMembers,
+                batchIds = batchIdsStr.map { UUID.fromString(it) },
+                courseIds = courseIdsStr.map { UUID.fromString(it) }
+            )
+        }
+        
+        val allTeams = projects.map { 
+            TeamFilterInfo(teamId = it.teamId, teamName = it.teamName) 
+        }.distinctBy { it.teamId }
+        
+        val allBatchIds = projects.flatMap { it.batchIds }.distinct()
+        val batches = if (allBatchIds.isNotEmpty()) {
+            batchRepository.findAllById(allBatchIds).map {
+                BatchFilterInfo(batchId = it.id!!, batchName = it.name)
+            }
+        } else {
+            emptyList()
+        }
+        
+        val allCourseIds = projects.flatMap { it.courseIds }.distinct()
+        val courses = if (allCourseIds.isNotEmpty()) {
+            courseRepository.findAllById(allCourseIds).map {
+                CourseFilterInfo(courseId = it.id!!, courseName = it.name, courseCode = it.code)
+            }
+        } else {
+            emptyList()
+        }
+        
+        return ReviewProjectsResponse(
+            reviewId = reviewId,
+            reviewName = review.name,
+            projects = projects,
+            teams = allTeams,
+            batches = batches,
+            courses = courses
+        )
+    }
 }

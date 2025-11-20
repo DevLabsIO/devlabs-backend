@@ -312,6 +312,34 @@ class ReviewController(
                 .body(mapOf("error" to "Failed to get review results: ${e.message}"))
         }
     }
+    
+    @GetMapping("/{reviewId}/projects")
+    fun getReviewProjects(
+        @PathVariable reviewId: UUID,
+        @RequestParam(required = false) teamId: UUID?,
+        @RequestParam(required = false) batchId: UUID?,
+        @RequestParam(required = false) courseId: UUID?
+    ): ResponseEntity<Any> {
+        return try {
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+            
+            val projects = reviewService.getReviewProjectsWithFilters(
+                reviewId, userId, teamId, batchId, courseId
+            )
+            ResponseEntity.ok(projects)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: ForbiddenException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to get review projects: ${e.message}"))
+        }
+    }
 
     data class FileBodyRequest(
         val url: String

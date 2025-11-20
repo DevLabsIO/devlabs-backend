@@ -73,12 +73,12 @@ class DashboardService(
         
         val today = LocalDate.now()
         
-        val reviewStats = reviewRepository.getReviewStats(today)
+        val reviewStats = reviewRepository.getReviewStatsForActiveSemesters(today)
         val totalReviews = (reviewStats["total_count"] as? Number)?.toInt() ?: 0
         val activeReviews = (reviewStats["active_count"] as? Number)?.toInt() ?: 0
         val completedReviews = (reviewStats["completed_count"] as? Number)?.toInt() ?: 0
         
-        val upcomingReviewsData = reviewRepository.findUpcomingReviews(today)
+        val upcomingReviewsData = reviewRepository.findUpcomingReviewsForActiveSemesters(today)
         val upcomingReviews = upcomingReviewsData.map { row ->
             ReviewSummaryResponse(
                 id = UUID.fromString(row["id"].toString()),
@@ -89,7 +89,7 @@ class DashboardService(
             )
         }
         
-        val recentPublicationsData = reviewCoursePublicationRepository.findRecentPublicationsNative()
+        val recentPublicationsData = reviewCoursePublicationRepository.findRecentPublicationsForActiveSemesters()
         val recentlyPublishedReviews = recentPublicationsData.map { row ->
             PublishedReviewSummaryResponse(
                 reviewId = UUID.fromString(row["review_id"].toString()),
@@ -98,10 +98,8 @@ class DashboardService(
             )
         }
         
-        val totalProjects = projectRepository.count().toInt()
-        val activeProjects = projectRepository.countByStatusIn(
-            listOf(ProjectStatus.ONGOING, ProjectStatus.PROPOSED)
-        ).toInt()
+        val totalProjects = projectRepository.countByActiveSemesters().toInt()
+        val activeProjects = projectRepository.countActiveProjectsByActiveSemesters().toInt()
         
         return ManagerStaffDashboardResponse(
             totalReviews = totalReviews,
