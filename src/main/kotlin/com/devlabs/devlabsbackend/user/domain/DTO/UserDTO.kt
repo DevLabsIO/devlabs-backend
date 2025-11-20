@@ -33,20 +33,3 @@ data class UpdateUserRequest(
     val role: String,
     val isActive: Boolean
 )
-
-data class KeycloakSyncRequest(
-    val id: String,
-    val name: String,
-    val email: String,
-    val role: String,
-    val phoneNumber: String?,
-    val isActive: Boolean
-)
-
-data class KeycloakUserSyncRequest(
-    val name: String,
-    val email: String,
-    val role: String,
-    val phoneNumber: String?,
-    val isActive: Boolean
-)

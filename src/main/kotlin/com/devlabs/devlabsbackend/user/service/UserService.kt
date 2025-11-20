@@ -210,51 +210,6 @@ class UserService(
         )
     }
 
-    @Transactional(readOnly = true)
-    fun checkUserExists(email: String): Boolean {
-        return userRepository.existsByEmail(email)
-    }
-
-    @Caching(
-        evict = [
-            CacheEvict(value = [CacheConfig.USER_DETAIL_CACHE], key = "#request.id"),
-            CacheEvict(value = ["users-list"], allEntries = true),
-            CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true),
-            CacheEvict(value = [CacheConfig.TEAMS_LIST, CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
-            CacheEvict(value = [CacheConfig.PROJECTS_LIST, CacheConfig.PROJECT_DETAIL], allEntries = true),
-            CacheEvict(value = [CacheConfig.COURSES_LIST_CACHE], allEntries = true),
-            CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true)
-        ]
-    )
-    @Transactional
-    fun createUserFromKeycloakSync(request: KeycloakSyncRequest): UserResponse {
-        val existingUser = userRepository.findById(request.id)
-        
-        if (existingUser.isPresent) {
-            val user = existingUser.get()
-            user.name = request.name
-            user.email = request.email
-            user.phoneNumber = request.phoneNumber
-            user.role = Role.valueOf(request.role.uppercase())
-            user.isActive = request.isActive
-            
-            val updatedUser = userRepository.save(user)
-            return updatedUser.toUserResponse()
-        } else {
-            val user = User(
-                id = request.id,
-                name = request.name,
-                email = request.email,
-                phoneNumber = request.phoneNumber,
-                role = Role.valueOf(request.role.uppercase()),
-                isActive = request.isActive
-            )
-            
-            val savedUser = userRepository.save(user)
-            return savedUser.toUserResponse()
-        }
-    }
-
     private fun createSort(sortBy: String, sortOrder: String): Sort {
         val direction = if (sortOrder.lowercase() == "desc") Sort.Direction.DESC else Sort.Direction.ASC
         return Sort.by(direction, sortBy)

@@ -52,7 +52,6 @@ class DevSecurityConfig(
             .authorizeHttpRequests { authorizeRequests ->
                 authorizeRequests
                     .requestMatchers("/api/users/**").permitAll()
-                    .requestMatchers("/api/user/check-exists").permitAll()
                     .requestMatchers("/error", "/actuator/**").permitAll()
                     .requestMatchers("/docs", "/docs/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                     .anyRequest().permitAll()
@@ -117,7 +116,6 @@ class ProdSecurityConfig(
             .authorizeHttpRequests { authorizeRequests ->
                 authorizeRequests
                     .requestMatchers("/api/users/**").permitAll()
-                    .requestMatchers("/api/user/check-exists").permitAll()
                     .requestMatchers("/error", "/actuator/**").permitAll()
                     .anyRequest().authenticated()
             }

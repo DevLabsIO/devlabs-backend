@@ -134,43 +134,6 @@ class UserController(private val userService: UserService) {
         }
     }
 
-    @GetMapping("/check-exists")
-    fun checkUserExists(@RequestParam email: String): ResponseEntity<Map<String, Boolean>> {
-        return try {
-            val exists = userService.checkUserExists(email)
-            ResponseEntity.ok(mapOf("exists" to exists))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("exists" to false))
-        }
-    }
-
-    @PostMapping("/keycloak-sync")
-    fun createUserFromKeycloakSync(@RequestBody request: KeycloakUserSyncRequest): ResponseEntity<Any> {
-        return try {
-            val userIdFromToken = SecurityUtils.getCurrentUserId()
-                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(mapOf("error" to "User not authenticated"))
-
-            val keycloakSyncRequest = KeycloakSyncRequest(
-                id = userIdFromToken,
-                name = request.name,
-                email = request.email,
-                role = request.role,
-                phoneNumber = request.phoneNumber,
-                isActive = request.isActive
-            )
-
-            val user = userService.createUserFromKeycloakSync(keycloakSyncRequest)
-            ResponseEntity.status(HttpStatus.CREATED).body(user)
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(mapOf("message" to e.message))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("message" to "Failed to create user from Keycloak sync: ${e.message}"))
-        }
-    }
-
     @GetMapping("/sync-stats")
     fun getSyncStats(): ResponseEntity<Any> {
         return try {
