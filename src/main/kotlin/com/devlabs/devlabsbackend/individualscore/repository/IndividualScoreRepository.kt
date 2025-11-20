@@ -179,4 +179,18 @@ interface IndividualScoreRepository : JpaRepository<IndividualScore, UUID> {
         @Param("review") review: Review,
         @Param("course") course: Course
     ): List<IndividualScore>
+
+    @Query("""
+        SELECT s FROM IndividualScore s 
+        LEFT JOIN FETCH s.criterion
+        LEFT JOIN FETCH s.review
+        WHERE s.participant = :participant 
+          AND s.review IN :reviews
+          AND s.course = :course
+    """)
+    fun findByParticipantAndReviewsAndCourse(
+        @Param("participant") participant: User,
+        @Param("reviews") reviews: List<Review>,
+        @Param("course") course: Course
+    ): List<IndividualScore>
 }

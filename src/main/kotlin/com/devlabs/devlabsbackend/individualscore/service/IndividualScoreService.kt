@@ -126,10 +126,11 @@ class IndividualScoreService(
             )
         } ?: emptyList()
 
+        val allScores = individualScoreRepository.findByReviewAndProjectAndCourse(review, project, course)
+        val scoresByParticipant = allScores.groupBy { it.participant.id }
+
         val existingScores = project.team.members.mapNotNull { member ->
-            val scores = individualScoreRepository.findByParticipantAndReviewAndProjectAndCourse(
-                member, review, project, course
-            )
+            val scores = scoresByParticipant[member.id] ?: emptyList()
 
             if (scores.isNotEmpty()) {
                 ParticipantScoreData(

@@ -213,10 +213,24 @@ class DashboardService(
         return try {
             if (courses.isEmpty()) return 0.0
             
+            val allScoresByCourse = courses.associateWith { course ->
+                individualScoreRepository.findByParticipantAndProjectInCourse(student, course)
+            }
+            
+            val allReviewIds = allScoresByCourse.values.flatten()
+                .mapNotNull { it.review.id }
+                .distinct()
+            
+            val publicationMap = if (allReviewIds.isNotEmpty()) {
+                reviewPublicationHelper.areReviewsPublishedForUser(allReviewIds, student.id!!, student.role.name)
+            } else {
+                emptyMap()
+            }
+            
             val scores = courses.mapNotNull { course ->
-                val allScores = individualScoreRepository.findByParticipantAndProjectInCourse(student, course)
+                val allScores = allScoresByCourse[course] ?: emptyList()
                 val publishedScores = allScores.filter { score ->
-                    reviewPublicationHelper.isReviewPublishedForUser(score.review, student)
+                    publicationMap[score.review.id] == true
                 }
                 
                 if (publishedScores.isNotEmpty()) {

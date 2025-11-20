@@ -100,4 +100,4 @@ fun ReviewCoursePublication.toPublishedReviewSummary() = PublishedReviewSummaryR
     reviewId = review.id!!,
     reviewName = review.name,
     publishedAt = publishedAt.toString()
-)
+)   

@@ -208,30 +208,46 @@ class CourseService(
             courses
         }
 
-        return finalCourses.map { course ->
-            val allReviews = individualScoreRepository.findDistinctReviewsByParticipantAndCourse(student, course)
-            val publishedReviews = allReviews.filter { review ->
-                reviewPublicationHelper.isReviewPublishedForUser(review, student)
+        if (finalCourses.isEmpty()) {
+            return emptyList()
+        }
+
+        val allReviewsByCourse = finalCourses.associateWith { course ->
+            individualScoreRepository.findDistinctReviewsByParticipantAndCourse(student, course)
+        }
+
+        val allReviewIds = allReviewsByCourse.values.flatten().mapNotNull { it.id }.distinct()
+        val publicationMap = if (allReviewIds.isNotEmpty()) {
+            reviewPublicationHelper.areReviewsPublishedForUser(allReviewIds, studentId, student.role.name)
+        } else {
+            emptyMap()
+        }
+
+        val allScoresByCourse = finalCourses.associateWith { course ->
+            val reviews = allReviewsByCourse[course] ?: emptyList()
+            val publishedReviews = reviews.filter { publicationMap[it.id] == true }
+            if (publishedReviews.isNotEmpty()) {
+                individualScoreRepository.findByParticipantAndReviewsAndCourse(student, publishedReviews, course)
+            } else {
+                emptyList()
             }
+        }
+
+        return finalCourses.map { course ->
+            val allReviews = allReviewsByCourse[course] ?: emptyList()
+            val publishedReviews = allReviews.filter { publicationMap[it.id] == true }
+            val allPublishedScores = allScoresByCourse[course] ?: emptyList()
 
             val reviewCount = publishedReviews.size
-            val averageScorePercentage = if (reviewCount == 0) {
+            val averageScorePercentage = if (reviewCount == 0 || allPublishedScores.isEmpty()) {
                 100.0
             } else {
-                val allPublishedScores = publishedReviews.flatMap { review ->
-                    individualScoreRepository.findByParticipantAndReviewAndCourse(student, review, course)
-                }
-
-                if (allPublishedScores.isEmpty()) {
-                    100.0
+                val totalPossibleScore = allPublishedScores.sumOf { it.criterion.maxScore.toDouble() }
+                val actualScore = allPublishedScores.sumOf { it.score }
+                if (totalPossibleScore > 0.0) {
+                    (actualScore / totalPossibleScore) * 100.0
                 } else {
-                    val totalPossibleScore = allPublishedScores.sumOf { it.criterion.maxScore.toDouble() }
-                    val actualScore = allPublishedScores.sumOf { it.score }
-                    if (totalPossibleScore > 0.0) {
-                        (actualScore / totalPossibleScore) * 100.0
-                    } else {
-                        100.0
-                    }
+                    100.0
                 }
             }
 
@@ -269,16 +285,26 @@ class CourseService(
         }
 
         val allReviews = individualScoreRepository.findDistinctReviewsByParticipantAndCourse(student, course)
-        val publishedReviews = allReviews.filter { review ->
-            reviewPublicationHelper.isReviewPublishedForUser(review, student)
+        
+        if (allReviews.isEmpty()) {
+            return emptyList()
         }
+
+        val reviewIds = allReviews.map { it.id!! }
+        val publicationMap = reviewPublicationHelper.areReviewsPublishedForUser(reviewIds, studentId, student.role.name)
+        val publishedReviews = allReviews.filter { review -> publicationMap[review.id] == true }
 
         if (publishedReviews.isEmpty()) {
             return emptyList()
         }
 
+        val allScores = individualScoreRepository.findByParticipantAndReviewsAndCourse(student, publishedReviews, course)
+        val scoresByReview = allScores.groupBy { it.review.id }
+
+        val currentDate = java.time.LocalDate.now()
+
         return publishedReviews.map { review ->
-            val scores = individualScoreRepository.findByParticipantAndReviewAndCourse(student, review, course)
+            val scores = scoresByReview[review.id] ?: emptyList()
             val totalPossibleScore = scores.sumOf { score -> score.criterion.maxScore.toDouble() }
             val actualScore = scores.sumOf { score -> score.score }
             val scorePercentage = if (totalPossibleScore > 0.0) {
@@ -287,7 +313,6 @@ class CourseService(
                 0.0
             }
 
-            val currentDate = java.time.LocalDate.now()
             val status = when {
                 scores.isEmpty() && review.endDate.isBefore(currentDate) -> "missed"
                 scores.isNotEmpty() -> "completed"

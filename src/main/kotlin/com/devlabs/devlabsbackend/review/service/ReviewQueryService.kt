@@ -320,12 +320,12 @@ class ReviewQueryService(
         val publishMap = publishData.associate { 
             it["review_id"].toString() to (it["count"] as Number).toInt()
         }
+
+        val publicationStatusMap = reviewPublicationHelper.areReviewsPublishedForUser(reviewIds, userId, user.role.name)
         
         val reviewResponses = reviewData.map { data ->
-            val reviewIdStr = data["id"].toString()
-            val isPublished = reviewPublicationHelper.isReviewPublishedForUser(
-                UUID.fromString(reviewIdStr), userId, user.role.name
-            )
+            val reviewId = UUID.fromString(data["id"].toString())
+            val isPublished = publicationStatusMap[reviewId] ?: false
             
             mapListDataToResponse(
                 data, 
