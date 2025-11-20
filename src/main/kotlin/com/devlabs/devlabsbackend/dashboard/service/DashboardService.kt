@@ -94,9 +94,7 @@ class DashboardService(
             PublishedReviewSummaryResponse(
                 reviewId = UUID.fromString(row["review_id"].toString()),
                 reviewName = row["review_name"].toString(),
-                courseName = "N/A", // Simplified for dashboard
-                publishedAt = row["published_at"].toString(),
-                publishedBy = "System" // Simplified for dashboard
+                publishedAt = row["published_at"].toString()
             )
         }
         

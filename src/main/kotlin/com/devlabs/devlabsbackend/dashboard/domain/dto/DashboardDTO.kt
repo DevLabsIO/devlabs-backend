@@ -77,9 +77,7 @@ data class ReviewSummaryResponse(
 data class PublishedReviewSummaryResponse(
     val reviewId: UUID,
     val reviewName: String,
-    val courseName: String,
-    val publishedAt: String,
-    val publishedBy: String
+    val publishedAt: String
 )
 
 fun User.toUserSummary() = UserSummaryResponse(
@@ -101,7 +99,5 @@ fun Review.toReviewSummary() = ReviewSummaryResponse(
 fun ReviewCoursePublication.toPublishedReviewSummary() = PublishedReviewSummaryResponse(
     reviewId = review.id!!,
     reviewName = review.name,
-    courseName = course.name,
-    publishedAt = publishedAt.toString(),
-    publishedBy = publishedBy.name
+    publishedAt = publishedAt.toString()
 )
