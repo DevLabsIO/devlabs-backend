@@ -174,8 +174,8 @@ class DashboardService(
         val recentlyPublishedReviews = if (allCourses.isNotEmpty()) {
             reviewCoursePublicationRepository.findRecentPublicationsByCourses(allCourses)
                 .groupBy { it.review.id }
-                .map { (_, publications) -> 
-                    publications.maxByOrNull { it.publishedAt }!!
+                .mapNotNull { (_, publications) -> 
+                    publications.maxByOrNull { it.publishedAt }
                 }
                 .sortedByDescending { it.publishedAt }
                 .take(5)
