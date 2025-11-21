@@ -72,6 +72,31 @@ interface IndividualScoreRepository : JpaRepository<IndividualScore, UUID> {
         @Param("projectId") projectId: UUID
     ): List<Map<String, Any>>
     
+    @Query(value = """
+        SELECT 
+            i_s.id,
+            i_s.review_id,
+            i_s.project_id,
+            i_s.participant_id,
+            u.name as participant_name,
+            u.email as participant_email,
+            i_s.criterion_id,
+            c.name as criterion_name,
+            c.max_score as criterion_max_score,
+            i_s.score,
+            i_s.comment
+        FROM individual_score i_s
+        JOIN "user" u ON u.id = i_s.participant_id
+        JOIN criterion c ON c.id = i_s.criterion_id
+        WHERE i_s.review_id = :reviewId
+          AND i_s.project_id IN (:projectIds)
+        ORDER BY i_s.participant_id, i_s.project_id, i_s.criterion_id
+    """, nativeQuery = true)
+    fun findScoresByReviewAndProjects(
+        @Param("reviewId") reviewId: UUID,
+        @Param("projectIds") projectIds: List<UUID>
+    ): List<Map<String, Any>>
+    
     @Query("""
         SELECT s FROM IndividualScore s 
         LEFT JOIN FETCH s.participant

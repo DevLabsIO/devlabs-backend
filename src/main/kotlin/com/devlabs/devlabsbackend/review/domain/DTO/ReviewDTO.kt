@@ -228,6 +228,39 @@ data class CourseFilterInfo(
     val courseCode: String
 )
 
+data class ReviewExportResponse(
+    val reviewId: UUID,
+    val reviewName: String,
+    val students: List<StudentExportData>,
+    val criteria: List<CriteriaInfo>
+)
+
+data class StudentExportData(
+    val profileId: String,
+    val studentName: String,
+    val email: String,
+    val teamId: UUID,
+    val teamName: String,
+    val projectId: UUID,
+    val projectTitle: String,
+    val batchIds: List<UUID>,
+    val batchNames: List<String>,
+    val courseIds: List<UUID>,
+    val courseNames: List<String>,
+    val totalScore: Double?,
+    val maxScore: Double?,
+    val percentage: Double?,
+    val criteriaScores: Map<UUID, CriteriaScoreData>
+)
+
+data class CriteriaScoreData(
+    val criterionId: UUID,
+    val criterionName: String,
+    val score: Double?,
+    val maxScore: Double,
+    val comment: String?
+)
+
 fun ReviewListDTO.toReviewResponse(): ReviewResponse {
     return ReviewResponse(
         id = this.id,

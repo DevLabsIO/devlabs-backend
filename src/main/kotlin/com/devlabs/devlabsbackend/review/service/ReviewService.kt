@@ -59,6 +59,14 @@ class ReviewService(
     ): ReviewProjectsResponse =
         reviewQueryService.getReviewProjectsWithFilters(reviewId, userId, teamId, batchId, courseId)
 
+    fun getReviewExportData(
+        reviewId: UUID,
+        userId: String,
+        batchIds: List<UUID>,
+        courseIds: List<UUID>
+    ): ReviewExportResponse =
+        reviewQueryService.getReviewExportData(reviewId, userId, batchIds, courseIds)
+
     fun createReview(request: CreateReviewRequest): ReviewResponse =
         reviewCrudService.createReview(request)
 

@@ -341,6 +341,33 @@ class ReviewController(
         }
     }
 
+    @GetMapping("/{reviewId}/export")
+    fun getReviewExportData(
+        @PathVariable reviewId: UUID,
+        @RequestParam(required = false) batchIds: List<UUID>?,
+        @RequestParam(required = false) courseIds: List<UUID>?
+    ): ResponseEntity<Any> {
+        return try {
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+            
+            val exportData = reviewService.getReviewExportData(
+                reviewId, userId, batchIds ?: emptyList(), courseIds ?: emptyList()
+            )
+            ResponseEntity.ok(exportData)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: ForbiddenException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("error" to "Failed to get review export data: ${e.message}"))
+        }
+    }
+
     data class FileBodyRequest(
         val url: String
     )

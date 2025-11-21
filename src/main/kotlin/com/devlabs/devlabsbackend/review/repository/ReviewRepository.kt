@@ -976,7 +976,9 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             rp.team_id,
             rp.team_name,
             STRING_AGG(m.id, '|' ORDER BY m.id) as member_ids,
+            STRING_AGG(m.profile_id, '|' ORDER BY m.id) as member_profile_ids,
             STRING_AGG(m.name, '|' ORDER BY m.id) as member_names,
+            STRING_AGG(m.email, '|' ORDER BY m.id) as member_emails,
             STRING_AGG(CAST(bs.batch_id AS VARCHAR), '|') as batch_ids,
             STRING_AGG(CAST(pc.course_id AS VARCHAR), '|') as course_ids
         FROM review_projects rp

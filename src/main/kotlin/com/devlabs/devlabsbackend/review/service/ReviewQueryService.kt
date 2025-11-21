@@ -897,4 +897,205 @@ class ReviewQueryService(
             courses = courses
         )
     }
+    
+    @Transactional(readOnly = true)
+    fun getReviewExportData(
+        reviewId: UUID,
+        userId: String,
+        batchIds: List<UUID>,
+        courseIds: List<UUID>
+    ): ReviewExportResponse {
+        val user = userRepository.findById(userId).orElseThrow {
+            NotFoundException("User with id $userId not found")
+        }
+        
+        val hasAccess = reviewRepository.hasUserAccessToReview(reviewId, userId, user.role.name)
+        if (!hasAccess) {
+            throw ForbiddenException("You don't have access to this review")
+        }
+        
+        val review = reviewRepository.findById(reviewId).orElseThrow {
+            NotFoundException("Review with id $reviewId not found")
+        }
+        
+        val criteria = review.rubrics?.criteria?.map {
+            CriteriaInfo(
+                id = it.id!!,
+                name = it.name,
+                description = it.description,
+                maxScore = it.maxScore,
+                isCommon = it.isCommon
+            )
+        } ?: emptyList()
+        
+        val projectsData = reviewRepository.findFilteredProjectsByReviewId(
+            reviewId, userId, user.role.name, null, null, null
+        )
+        
+        var filteredProjects = projectsData
+        
+        if (batchIds.isNotEmpty()) {
+            filteredProjects = filteredProjects.filter { row ->
+                val projectBatchIds = row["batch_ids"]?.toString()
+                    ?.split("|")
+                    ?.filter { it.isNotEmpty() }
+                    ?.map { UUID.fromString(it) }
+                    ?: emptyList()
+                projectBatchIds.any { batchIds.contains(it) }
+            }
+        }
+        
+        if (courseIds.isNotEmpty()) {
+            filteredProjects = filteredProjects.filter { row ->
+                val projectCourseIds = row["course_ids"]?.toString()
+                    ?.split("|")
+                    ?.filter { it.isNotEmpty() }
+                    ?.map { UUID.fromString(it) }
+                    ?: emptyList()
+                projectCourseIds.any { courseIds.contains(it) }
+            }
+        }
+        
+        val allBatchIds = filteredProjects
+            .flatMap { row ->
+                row["batch_ids"]?.toString()
+                    ?.split("|")
+                    ?.filter { it.isNotEmpty() }
+                    ?.map { UUID.fromString(it) }
+                    ?: emptyList()
+            }
+            .distinct()
+        
+        val batchMap = if (allBatchIds.isNotEmpty()) {
+            batchRepository.findAllById(allBatchIds).associate { it.id!! to it.name }
+        } else {
+            emptyMap()
+        }
+        
+        val allCourseIds = filteredProjects
+            .flatMap { row ->
+                row["course_ids"]?.toString()
+                    ?.split("|")
+                    ?.filter { it.isNotEmpty() }
+                    ?.map { UUID.fromString(it) }
+                    ?: emptyList()
+            }
+            .distinct()
+        
+        val courseMap = if (allCourseIds.isNotEmpty()) {
+            courseRepository.findAllById(allCourseIds).associate { 
+                it.id!! to "${it.name} (${it.code})" 
+            }
+        } else {
+            emptyMap()
+        }
+        
+        val projectIds = filteredProjects.map { UUID.fromString(it["project_id"].toString()) }
+        
+        val scoresData = if (projectIds.isNotEmpty()) {
+            individualScoreRepository.findScoresByReviewAndProjects(reviewId, projectIds)
+        } else {
+            emptyList()
+        }
+        
+        val scoresByParticipantAndProject = scoresData.groupBy { 
+            "${it["participant_id"]}_${it["project_id"]}" 
+        }
+        
+        val students = filteredProjects.flatMap { projectRow ->
+            val projectId = UUID.fromString(projectRow["project_id"].toString())
+            val projectTitle = projectRow["project_title"].toString()
+            val teamId = UUID.fromString(projectRow["team_id"].toString())
+            val teamName = projectRow["team_name"].toString()
+            
+            val memberIds = projectRow["member_ids"]?.toString()
+                ?.split("|")
+                ?.filter { it.isNotEmpty() } 
+                ?: emptyList()
+            val memberProfileIds = projectRow["member_profile_ids"]?.toString()
+                ?.split("|")
+                ?.filter { it.isNotEmpty() } 
+                ?: emptyList()
+            val memberNames = projectRow["member_names"]?.toString()
+                ?.split("|")
+                ?.filter { it.isNotEmpty() } 
+                ?: emptyList()
+            val memberEmails = projectRow["member_emails"]?.toString()
+                ?.split("|")
+                ?.filter { it.isNotEmpty() } 
+                ?: emptyList()
+            
+            val projectBatchIds = projectRow["batch_ids"]?.toString()
+                ?.split("|")
+                ?.filter { it.isNotEmpty() }
+                ?.map { UUID.fromString(it) }
+                ?: emptyList()
+            
+            val projectCourseIds = projectRow["course_ids"]?.toString()
+                ?.split("|")
+                ?.filter { it.isNotEmpty() }
+                ?.map { UUID.fromString(it) }
+                ?: emptyList()
+            
+            val batchNames = projectBatchIds.mapNotNull { batchMap[it] }
+            val courseNames = projectCourseIds.mapNotNull { courseMap[it] }
+            
+            memberIds.indices.map { index ->
+                val memberId = memberIds[index]
+                val memberProfileId = memberProfileIds.getOrNull(index) ?: ""
+                val memberName = memberNames.getOrNull(index) ?: "Unknown"
+                val memberEmail = memberEmails.getOrNull(index) ?: ""
+                
+                val key = "${memberId}_${projectId}"
+                val participantScores = scoresByParticipantAndProject[key] ?: emptyList()
+                
+                val criteriaScores = mutableMapOf<UUID, CriteriaScoreData>()
+                var totalScore: Double? = null
+                var maxScore: Double? = null
+                var percentage: Double? = null
+                
+                if (participantScores.isNotEmpty()) {
+                    totalScore = participantScores.sumOf { (it["score"] as Number).toDouble() }
+                    maxScore = participantScores.sumOf { (it["criterion_max_score"] as Number).toDouble() }
+                    percentage = if (maxScore!! > 0.0) (totalScore!! / maxScore) * 100.0 else 0.0
+                    
+                    participantScores.forEach { scoreData ->
+                        val criterionId = UUID.fromString(scoreData["criterion_id"].toString())
+                        criteriaScores[criterionId] = CriteriaScoreData(
+                            criterionId = criterionId,
+                            criterionName = scoreData["criterion_name"].toString(),
+                            score = (scoreData["score"] as Number).toDouble(),
+                            maxScore = (scoreData["criterion_max_score"] as Number).toDouble(),
+                            comment = scoreData["comment"]?.toString()
+                        )
+                    }
+                }
+                
+                StudentExportData(
+                    profileId = memberProfileId,
+                    studentName = memberName,
+                    email = memberEmail,
+                    teamId = teamId,
+                    teamName = teamName,
+                    projectId = projectId,
+                    projectTitle = projectTitle,
+                    batchIds = projectBatchIds,
+                    batchNames = batchNames,
+                    courseIds = projectCourseIds,
+                    courseNames = courseNames,
+                    totalScore = totalScore,
+                    maxScore = maxScore,
+                    percentage = percentage,
+                    criteriaScores = criteriaScores
+                )
+            }
+        }
+        
+        return ReviewExportResponse(
+            reviewId = reviewId,
+            reviewName = review.name,
+            students = students,
+            criteria = criteria
+        )
+    }
 }
