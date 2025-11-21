@@ -225,20 +225,26 @@ class DashboardService(
                 emptyMap()
             }
             
-            val scores = courses.mapNotNull { course ->
+            val scorePercentages = courses.mapNotNull { course ->
                 val allScores = allScoresByCourse[course] ?: emptyList()
                 val publishedScores = allScores.filter { score ->
                     publicationMap[score.review.id] == true
                 }
                 
                 if (publishedScores.isNotEmpty()) {
-                    publishedScores.map { it.score }.average()
+                    val totalPossibleScore = publishedScores.sumOf { it.criterion.maxScore.toDouble() }
+                    val actualScore = publishedScores.sumOf { it.score }
+                    if (totalPossibleScore > 0.0) {
+                        (actualScore / totalPossibleScore) * 100.0
+                    } else {
+                        null
+                    }
                 } else {
                     null
                 }
             }
             
-            if (scores.isNotEmpty()) scores.average() else 0.0
+            if (scorePercentages.isNotEmpty()) scorePercentages.average() else 0.0
         } catch (e: Exception) {
             0.0
         }
