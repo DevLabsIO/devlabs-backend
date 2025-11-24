@@ -6,6 +6,8 @@ import com.devlabs.devlabsbackend.project.domain.Project
 import com.devlabs.devlabsbackend.rubrics.domain.Rubrics
 import com.devlabs.devlabsbackend.user.domain.User
 import jakarta.persistence.*
+import java.sql.Timestamp
+import java.time.Instant
 import java.time.LocalDate
 import java.util.*
 
@@ -17,7 +19,9 @@ import java.util.*
         Index(name = "idx_review_end_date", columnList = "endDate"),
         Index(name = "idx_review_created_by_id", columnList = "created_by_id"),
         Index(name = "idx_review_rubrics_id", columnList = "rubrics_id"),
-        Index(name = "idx_review_dates", columnList = "startDate, endDate")
+        Index(name = "idx_review_dates", columnList = "startDate, endDate"),
+        Index(name = "idx_review_created_at", columnList = "createdAt"),
+        Index(name = "idx_review_updated_at", columnList = "updatedAt")
     ]
 )
 class Review(
@@ -66,5 +70,8 @@ class Review(
     @ElementCollection
     @CollectionTable(name = "review_files", joinColumns = [JoinColumn(name = "review_id")])
     @Column(name = "file_path")
-    var files: MutableSet<String> = mutableSetOf()
+    var files: MutableSet<String> = mutableSetOf(),
+    
+    val createdAt: Timestamp = Timestamp.from(Instant.now()),
+    var updatedAt: Timestamp = Timestamp.from(Instant.now())
 )

@@ -54,8 +54,8 @@ class BatchController(
         @PathVariable batchId: UUID,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String
     ): ResponseEntity<Any> {
         return try {
             val students = batchService.getBatchStudents(batchId, page, size, sort_by, sort_order)
@@ -75,8 +75,8 @@ class BatchController(
         @RequestParam query: String,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String
     ): ResponseEntity<Any> {
         return try {
             val students = batchService.searchBatchStudents(batchId, query, page, size, sort_by, sort_order)
@@ -100,15 +100,33 @@ class BatchController(
         batchService.removeStudentsFromBatch(batchId, userIds)
     }
 
-    @GetMapping
-    fun getAllBatches(
-        @RequestParam(required = false, defaultValue = "0") page: Int,
-        @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String?
+    @GetMapping("/{batchId}/available-students")
+    fun getAvailableStudents(
+        @PathVariable batchId: UUID,
+        @RequestParam(required = false, defaultValue = "") query: String
     ): ResponseEntity<Any> {
         return try {
-            val batches = batchService.getAllBatches(page, size, sort_by, sort_order)
+            val students = batchService.getAvailableStudents(batchId, query)
+            ResponseEntity.ok(students)
+        } catch (e: NotFoundException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("message" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("message" to "Failed to fetch available students: ${e.message}"))
+        }
+    }
+
+    @GetMapping
+    fun getAllBatches(
+        @RequestParam(required = false) isActive: Boolean?,
+        @RequestParam(required = false, defaultValue = "0") page: Int,
+        @RequestParam(required = false, defaultValue = "10") size: Int,
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String?
+    ): ResponseEntity<Any> {
+        return try {
+            val batches = batchService.getAllBatches(isActive, page, size, sort_by, sort_order)
             ResponseEntity.ok(batches)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -119,13 +137,14 @@ class BatchController(
     @GetMapping("/search")
     fun searchBatches(
         @RequestParam query: String,
+        @RequestParam(required = false) isActive: Boolean?,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
         @RequestParam(required = false) sort_by: String?,
         @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<PaginatedResponse<BatchResponse>> {
         return try {
-            val batches = batchService.searchBatches(query, page, size, sort_by, sort_order)
+            val batches = batchService.searchBatches(query, isActive, page, size, sort_by, sort_order)
             ResponseEntity.ok(batches)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

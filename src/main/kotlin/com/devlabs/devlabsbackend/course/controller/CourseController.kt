@@ -244,8 +244,8 @@ class CourseController(
     fun getMyActiveCourses(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String
     ): ResponseEntity<Any> {
         return try {
             val userId = SecurityUtils.getCurrentUserId() ?: throw IllegalArgumentException("User not authenticated")
@@ -269,8 +269,8 @@ class CourseController(
         @RequestBody request: Map<String, Any>,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String
     ): ResponseEntity<Any> {
         return try {
             val userId = SecurityUtils.getCurrentUserId() ?: throw IllegalArgumentException("User not authenticated")
@@ -299,8 +299,8 @@ class CourseController(
         @PathVariable courseId: UUID,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String
     ): ResponseEntity<PaginatedResponse<UserResponse>> {
         return try {
             val students = courseService.getCourseStudents(courseId, page, size, sort_by, sort_order)
@@ -320,8 +320,8 @@ class CourseController(
         @PathVariable courseId: UUID,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String
     ): ResponseEntity<PaginatedResponse<BatchResponse>> {
         return try {
             val batches = courseService.getCourseBatches(courseId, page, size, sort_by, sort_order)
@@ -342,8 +342,8 @@ class CourseController(
         @RequestParam query: String,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String
     ): ResponseEntity<PaginatedResponse<BatchResponse>> {
         return try {
             val batches = courseService.searchCourseBatches(courseId, query, page, size, sort_by, sort_order)
@@ -364,8 +364,8 @@ class CourseController(
         @RequestParam query: String,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String
     ): ResponseEntity<PaginatedResponse<UserResponse>> {
         return try {
             val students = courseService.searchCourseStudents(courseId, query, page, size, sort_by, sort_order)

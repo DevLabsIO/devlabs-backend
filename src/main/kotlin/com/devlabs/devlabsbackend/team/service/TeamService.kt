@@ -72,7 +72,7 @@ class TeamService(
         value = [CacheConfig.TEAMS_LIST],
         key = "'teams_all_' + #page + '_' + #size + '_' + #sortBy + '_' + #sortOrder"
     )
-    fun getAllTeams(page: Int = 0, size: Int = 10, sortBy: String = "name", sortOrder: String = "asc"): PaginatedResponse<TeamResponse> {
+    fun getAllTeams(page: Int = 0, size: Int = 10, sortBy: String = "createdAt", sortOrder: String = "desc"): PaginatedResponse<TeamResponse> {
         val offset = page * size
         val sortByNormalized = if (sortBy == "createdAt") "created_at" else sortBy
         val sortOrderNormalized = sortOrder.uppercase()
@@ -112,7 +112,7 @@ class TeamService(
         value = [CacheConfig.TEAMS_LIST],
         key = "'teams_user_' + #userId + '_' + #page + '_' + #size + '_' + #sortBy + '_' + #sortOrder"
     )
-    fun getTeamsByUser(userId: String, page: Int = 0, size: Int = 10, sortBy: String = "name", sortOrder: String = "asc"): PaginatedResponse<TeamResponse> {
+    fun getTeamsByUser(userId: String, page: Int = 0, size: Int = 10, sortBy: String = "createdAt", sortOrder: String = "desc"): PaginatedResponse<TeamResponse> {
         if (!userRepository.existsById(userId)) {
             throw NotFoundException("User with id $userId not found")
         }

@@ -156,8 +156,10 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         ORDER BY 
             CASE WHEN :sortBy = 'title' AND :sortOrder = 'ASC' THEN p.title END ASC,
             CASE WHEN :sortBy = 'title' AND :sortOrder = 'DESC' THEN p.title END DESC,
-            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'ASC' THEN p.updated_at END ASC,
-            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'DESC' THEN p.updated_at END DESC
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN p.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN p.created_at END DESC NULLS LAST,
+            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'ASC' THEN p.updated_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'DESC' THEN p.updated_at END DESC NULLS LAST
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun findProjectsByCourseNative(
@@ -243,10 +245,10 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         ORDER BY 
             CASE WHEN :sortBy = 'title' AND :sortOrder = 'ASC' THEN p.title END ASC,
             CASE WHEN :sortBy = 'title' AND :sortOrder = 'DESC' THEN p.title END DESC,
-            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN p.created_at END ASC,
-            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN p.created_at END DESC,
-            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'ASC' THEN p.updated_at END ASC,
-            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'DESC' THEN p.updated_at END DESC
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN p.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN p.created_at END DESC NULLS LAST,
+            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'ASC' THEN p.updated_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'DESC' THEN p.updated_at END DESC NULLS LAST
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun findProjectsByTeamNative(
@@ -277,10 +279,10 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
           CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
           CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
           CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun findIdsByUserAndCourse(
@@ -309,10 +311,10 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
           CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
           CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
           CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun findProjectsByUserAndCourseNative(
@@ -349,10 +351,10 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
           CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
           CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
           CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun findIdsByUser(
@@ -378,10 +380,10 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
           CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
           CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
           CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun findProjectsByUserNative(

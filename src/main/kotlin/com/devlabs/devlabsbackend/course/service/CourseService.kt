@@ -626,7 +626,7 @@ class CourseService(
         return BatchResponse(
             id = UUID.fromString(data["id"].toString()),
             name = data["name"].toString(),
-            graduationYear = Year.of((data["graduation_year"] as Number).toInt()),
+            joinYear = Year.of((data["join_year"] as Number).toInt()),
             section = data["section"].toString(),
             isActive = true,
             department = null

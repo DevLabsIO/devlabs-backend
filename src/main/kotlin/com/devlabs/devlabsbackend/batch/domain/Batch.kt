@@ -4,6 +4,8 @@ import com.devlabs.devlabsbackend.department.domain.Department
 import com.devlabs.devlabsbackend.semester.domain.Semester
 import com.devlabs.devlabsbackend.user.domain.User
 import jakarta.persistence.*
+import java.sql.Timestamp
+import java.time.Instant
 import java.time.Year
 import java.util.*
 
@@ -12,9 +14,11 @@ import java.util.*
     name = "batch",
     indexes = [
         Index(name = "idx_batch_is_active", columnList = "isActive"),
-        Index(name = "idx_batch_graduation_year", columnList = "graduationYear"),
+        Index(name = "idx_batch_join_year", columnList = "joinYear"),
         Index(name = "idx_batch_department_id", columnList = "department_id"),
-        Index(name = "idx_batch_name", columnList = "name")
+        Index(name = "idx_batch_name", columnList = "name"),
+        Index(name = "idx_batch_created_at", columnList = "createdAt"),
+        Index(name = "idx_batch_updated_at", columnList = "updatedAt")
     ]
 )
 class Batch (
@@ -22,7 +26,7 @@ class Batch (
     @GeneratedValue(strategy = GenerationType.UUID)
     val id : UUID? = null,
     var name: String,
-    var graduationYear: Year,
+    var joinYear: Year,
     var section: String,
     var isActive: Boolean,
     @ManyToMany(fetch = FetchType.LAZY)
@@ -52,5 +56,7 @@ class Batch (
     @ManyToOne
     @JoinColumn(name = "department_id")
     var department: Department? = null,
-
+    
+    val createdAt: Timestamp = Timestamp.from(Instant.now()),
+    var updatedAt: Timestamp = Timestamp.from(Instant.now())
 )

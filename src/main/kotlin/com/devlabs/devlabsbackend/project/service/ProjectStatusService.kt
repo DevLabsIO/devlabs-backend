@@ -162,7 +162,7 @@ class ProjectStatusService(
         key = "'archived-' + #userId + '-' + #page + '-' + #size + '-' + #sortBy + '-' + #sortOrder"
     )
     @Transactional(readOnly = true)
-    fun getArchivedProjects(userId: String, page: Int = 0, size: Int = 10, sortBy: String = "title", sortOrder: String = "asc"): PaginatedResponse<ProjectResponse> {
+    fun getArchivedProjects(userId: String, page: Int = 0, size: Int = 10, sortBy: String = "updatedAt", sortOrder: String = "desc"): PaginatedResponse<ProjectResponse> {
         val user = userRepository.findById(userId).orElseThrow {
             NotFoundException("User with id $userId not found")
         }
@@ -211,7 +211,7 @@ class ProjectStatusService(
     }
     
     @Transactional(readOnly = true)
-    fun searchArchivedProjects(userId: String, query: String, page: Int = 0, size: Int = 10, sortBy: String = "title", sortOrder: String = "asc"): PaginatedResponse<ProjectResponse> {
+    fun searchArchivedProjects(userId: String, query: String, page: Int = 0, size: Int = 10, sortBy: String = "updatedAt", sortOrder: String = "desc"): PaginatedResponse<ProjectResponse> {
         val user = userRepository.findById(userId).orElseThrow {
             NotFoundException("User with id $userId not found")
         }

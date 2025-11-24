@@ -21,7 +21,9 @@ interface SemesterRepository : JpaRepository<Semester, UUID> {
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN s.name END ASC,
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN s.name END DESC,
             CASE WHEN :sortBy = 'year' AND :sortOrder = 'ASC' THEN s.year END ASC,
-            CASE WHEN :sortBy = 'year' AND :sortOrder = 'DESC' THEN s.year END DESC
+            CASE WHEN :sortBy = 'year' AND :sortOrder = 'DESC' THEN s.year END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN s.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN s.created_at END DESC NULLS LAST
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun findSemesterIdsOnly(
@@ -53,7 +55,9 @@ interface SemesterRepository : JpaRepository<Semester, UUID> {
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN s.name END ASC,
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN s.name END DESC,
             CASE WHEN :sortBy = 'year' AND :sortOrder = 'ASC' THEN s.year END ASC,
-            CASE WHEN :sortBy = 'year' AND :sortOrder = 'DESC' THEN s.year END DESC
+            CASE WHEN :sortBy = 'year' AND :sortOrder = 'DESC' THEN s.year END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN s.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN s.created_at END DESC NULLS LAST
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun searchSemesterIdsOnly(
@@ -71,6 +75,67 @@ interface SemesterRepository : JpaRepository<Semester, UUID> {
             OR CAST(s.year AS VARCHAR) LIKE CONCAT('%', :query, '%')
     """, nativeQuery = true)
     fun countSearchSemesters(@Param("query") query: String): Long
+
+    @Query(value = """
+        SELECT s.id
+        FROM semester s
+        WHERE s.is_active = :isActive
+        ORDER BY 
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN s.name END ASC,
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN s.name END DESC,
+            CASE WHEN :sortBy = 'year' AND :sortOrder = 'ASC' THEN s.year END ASC,
+            CASE WHEN :sortBy = 'year' AND :sortOrder = 'DESC' THEN s.year END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN s.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN s.created_at END DESC NULLS LAST
+        OFFSET :offset LIMIT :limit
+    """, nativeQuery = true)
+    fun findSemesterIdsByIsActive(
+        @Param("isActive") isActive: Boolean,
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<UUID>
+
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM semester s
+        WHERE s.is_active = :isActive
+    """, nativeQuery = true)
+    fun countSemestersByIsActive(@Param("isActive") isActive: Boolean): Long
+
+    @Query(value = """
+        SELECT s.id
+        FROM semester s
+        WHERE s.is_active = :isActive
+        AND (LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR CAST(s.year AS VARCHAR) LIKE CONCAT('%', :query, '%'))
+        ORDER BY 
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN s.name END ASC,
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN s.name END DESC,
+            CASE WHEN :sortBy = 'year' AND :sortOrder = 'ASC' THEN s.year END ASC,
+            CASE WHEN :sortBy = 'year' AND :sortOrder = 'DESC' THEN s.year END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN s.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN s.created_at END DESC NULLS LAST
+        OFFSET :offset LIMIT :limit
+    """, nativeQuery = true)
+    fun searchSemesterIdsByIsActive(
+        @Param("query") query: String,
+        @Param("isActive") isActive: Boolean,
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<UUID>
+
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM semester s
+        WHERE s.is_active = :isActive
+        AND (LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR CAST(s.year AS VARCHAR) LIKE CONCAT('%', :query, '%'))
+    """, nativeQuery = true)
+    fun countSearchSemestersByIsActive(@Param("query") query: String, @Param("isActive") isActive: Boolean): Long
 
     @Query(value = """
         SELECT c.id, c.name, c.code, c.description

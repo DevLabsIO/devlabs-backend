@@ -16,7 +16,9 @@ interface DepartmentRepository : JpaRepository<Department, UUID> {
         FROM department d
         ORDER BY 
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN d.name END ASC,
-            CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN d.name END DESC
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN d.name END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN d.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN d.created_at END DESC NULLS LAST
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun findAllIds(
@@ -32,7 +34,9 @@ interface DepartmentRepository : JpaRepository<Department, UUID> {
         WHERE LOWER(d.name) LIKE LOWER(CONCAT('%', :query, '%'))
         ORDER BY 
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN d.name END ASC,
-            CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN d.name END DESC
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN d.name END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN d.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN d.created_at END DESC NULLS LAST
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun findIdsByNameContaining(
@@ -58,7 +62,7 @@ interface DepartmentRepository : JpaRepository<Department, UUID> {
     
     @Query("""
         SELECT new com.devlabs.devlabsbackend.department.domain.dto.DepartmentBatchResponse(
-            b.id, b.name, b.graduationYear, b.section
+            b.id, b.name, b.joinYear, b.section
         )
         FROM Department d 
         JOIN d.batches b 

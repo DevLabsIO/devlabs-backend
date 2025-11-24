@@ -7,7 +7,7 @@ import java.util.UUID
 data class BatchResponse(
     val id: UUID?,
     val name: String,
-    val graduationYear: Year,
+    val joinYear: Year,
     val section: String,
     val isActive: Boolean,
     val department: DepartmentResponse?

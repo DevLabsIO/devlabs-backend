@@ -37,15 +37,23 @@ class SemesterService(
 
     @Cacheable(
         value = ["semesters-list"],
-        key = "'semesters-' + #page + '-' + #size + '-' + #sortBy + '-' + #sortOrder",
-        condition = "#page == 0 && #size == 10"
+        key = "'semesters-' + #page + '-' + #size + '-' + #sortBy + '-' + #sortOrder + '-' + #isActive",
+        condition = "#page == 0 && #size == 10 && #isActive == null"
     )
-    fun getAllSemestersPaginated(page: Int, size: Int, sortBy: String = "name", sortOrder: String = "asc"): PaginatedResponse<SemesterResponse> {
+    fun getAllSemestersPaginated(isActive: Boolean?, page: Int, size: Int, sortBy: String = "createdAt", sortOrder: String = "desc"): PaginatedResponse<SemesterResponse> {
         val actualSortOrder = sortOrder.uppercase()
         val offset = page * size
         
-        val ids = semesterRepository.findSemesterIdsOnly(sortBy, actualSortOrder, offset, size)
-        val totalCount = semesterRepository.countAllSemesters()
+        val ids = if (isActive != null) {
+            semesterRepository.findSemesterIdsByIsActive(isActive, sortBy, actualSortOrder, offset, size)
+        } else {
+            semesterRepository.findSemesterIdsOnly(sortBy, actualSortOrder, offset, size)
+        }
+        val totalCount = if (isActive != null) {
+            semesterRepository.countSemestersByIsActive(isActive)
+        } else {
+            semesterRepository.countAllSemesters()
+        }
 
         if (ids.isEmpty()) {
             return PaginatedResponse(
@@ -73,12 +81,20 @@ class SemesterService(
         )
     }
 
-    fun searchSemesterPaginated(query: String, page: Int, size: Int, sortBy: String = "name", sortOrder: String = "asc"): PaginatedResponse<SemesterResponse> {
+    fun searchSemesterPaginated(query: String, isActive: Boolean?, page: Int, size: Int, sortBy: String = "createdAt", sortOrder: String = "desc"): PaginatedResponse<SemesterResponse> {
         val actualSortOrder = sortOrder.uppercase()
         val offset = page * size
         
-        val ids = semesterRepository.searchSemesterIdsOnly(query, sortBy, actualSortOrder, offset, size)
-        val totalCount = semesterRepository.countSearchSemesters(query)
+        val ids = if (isActive != null) {
+            semesterRepository.searchSemesterIdsByIsActive(query, isActive, sortBy, actualSortOrder, offset, size)
+        } else {
+            semesterRepository.searchSemesterIdsOnly(query, sortBy, actualSortOrder, offset, size)
+        }
+        val totalCount = if (isActive != null) {
+            semesterRepository.countSearchSemestersByIsActive(query, isActive)
+        } else {
+            semesterRepository.countSearchSemesters(query)
+        }
 
         if (ids.isEmpty()) {
             return PaginatedResponse(
@@ -244,6 +260,44 @@ class SemesterService(
             name = savedCourse.name,
             code = savedCourse.code,
             description = savedCourse.description
+        )
+    }
+
+    @Caching(
+        evict = [
+            CacheEvict(value = ["semesters-list"], allEntries = true),
+            CacheEvict(value = ["semester-detail"], allEntries = true),
+            CacheEvict(value = ["courses-list"], allEntries = true),
+            CacheEvict(value = [CacheConfig.SEMESTER_DETAIL_CACHE, CacheConfig.SEMESTERS_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSE_DETAIL_CACHE, CacheConfig.COURSES_LIST_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.COURSES_ACTIVE_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
+        ]
+    )
+    fun updateCourseForSemester(semesterId: UUID, courseId: UUID, courseRequest: com.devlabs.devlabsbackend.course.domain.dto.UpdateCourseRequest): CourseResponse {
+        val semester = semesterRepository.findById(semesterId).orElseThrow {
+            NotFoundException("Semester with id $semesterId not found")
+        }
+
+        val course = courseRepository.findById(courseId).orElseThrow {
+            NotFoundException("Course with id $courseId not found")
+        }
+
+        if (course.semester?.id != semester.id) {
+            throw IllegalArgumentException("Course with id $courseId does not belong to semester with id $semesterId")
+        }
+
+        courseRequest.name?.let { course.name = it }
+        courseRequest.code?.let { course.code = it }
+        courseRequest.description?.let { course.description = it }
+        courseRequest.type?.let { course.type = it }
+
+        val updatedCourse = courseRepository.save(course)
+        return CourseResponse(
+            id = updatedCourse.id!!,
+            name = updatedCourse.name,
+            code = updatedCourse.code,
+            description = updatedCourse.description
         )
     }
 

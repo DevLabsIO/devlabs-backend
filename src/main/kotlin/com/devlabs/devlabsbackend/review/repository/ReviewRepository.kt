@@ -77,7 +77,9 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'asc' THEN r.end_date END ASC,
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'desc' THEN r.end_date END DESC,
           CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'asc' THEN r.start_date END ASC,
-          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN r.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN r.created_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun findAllReviewIds(
@@ -96,7 +98,7 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     @Query(value = """
         SELECT r.id
         FROM (
-            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
             FROM review r
             WHERE EXISTS (
                 -- Reviews with courses taught by the faculty
@@ -123,7 +125,9 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'asc' THEN r.end_date END ASC,
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'desc' THEN r.end_date END DESC,
           CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'asc' THEN r.start_date END ASC,
-          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN r.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN r.created_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun findReviewIdsForFaculty(
@@ -161,7 +165,7 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     @Query(value = """
         SELECT r.id
         FROM (
-            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
             FROM review r
             JOIN review_project rp ON rp.review_id = r.id
             JOIN project p ON p.id = rp.project_id
@@ -175,7 +179,9 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'asc' THEN r.end_date END ASC,
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'desc' THEN r.end_date END DESC,
           CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'asc' THEN r.start_date END ASC,
-          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN r.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN r.created_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun findReviewIdsForStudent(
@@ -575,33 +581,38 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     ): Boolean
     
     @Query(value = """
-        SELECT DISTINCT r.id
-        FROM review r
-        WHERE 1=1
-          AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:courseId IS NULL OR EXISTS (
-              SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
-          ))
-          AND (
-              CASE :status
-                  WHEN 'live' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'ongoing' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'current' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'completed' THEN r.end_date < :currentDate
-                  WHEN 'ended' THEN r.end_date < :currentDate
-                  WHEN 'past' THEN r.end_date < :currentDate
-                  WHEN 'upcoming' THEN r.start_date > :currentDate
-                  WHEN 'future' THEN r.start_date > :currentDate
-                  ELSE TRUE
-              END
-          )
+        SELECT r.id
+        FROM (
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
+            FROM review r
+            WHERE 1=1
+              AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
+              AND (:courseId IS NULL OR EXISTS (
+                  SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+              ))
+              AND (
+                  CASE :status
+                      WHEN 'live' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'ongoing' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'current' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'completed' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'ended' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'past' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'upcoming' THEN r.start_date > CAST(:currentDate AS DATE)
+                      WHEN 'future' THEN r.start_date > CAST(:currentDate AS DATE)
+                      ELSE TRUE
+                  END
+              )
+        ) r
         ORDER BY 
           CASE WHEN :sortBy = 'name' AND :sortOrder = 'asc' THEN r.name END ASC,
           CASE WHEN :sortBy = 'name' AND :sortOrder = 'desc' THEN r.name END DESC,
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'asc' THEN r.end_date END ASC,
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'desc' THEN r.end_date END DESC,
           CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'asc' THEN r.start_date END ASC,
-          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN r.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN r.created_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun searchReviewIdsForAdmin(
@@ -625,14 +636,14 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
           ))
           AND (
               CASE :status
-                  WHEN 'live' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'ongoing' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'current' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'completed' THEN r.end_date < :currentDate
-                  WHEN 'ended' THEN r.end_date < :currentDate
-                  WHEN 'past' THEN r.end_date < :currentDate
-                  WHEN 'upcoming' THEN r.start_date > :currentDate
-                  WHEN 'future' THEN r.start_date > :currentDate
+                  WHEN 'live' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                  WHEN 'ongoing' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                  WHEN 'current' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                  WHEN 'completed' THEN r.end_date < CAST(:currentDate AS DATE)
+                  WHEN 'ended' THEN r.end_date < CAST(:currentDate AS DATE)
+                  WHEN 'past' THEN r.end_date < CAST(:currentDate AS DATE)
+                  WHEN 'upcoming' THEN r.start_date > CAST(:currentDate AS DATE)
+                  WHEN 'future' THEN r.start_date > CAST(:currentDate AS DATE)
                   ELSE TRUE
               END
           )
@@ -645,52 +656,57 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     ): Int
     
     @Query(value = """
-        SELECT DISTINCT r.id
-        FROM review r
-        WHERE (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:courseId IS NULL OR EXISTS (
-              SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
-          ))
-          AND (
-              CASE :status
-                  WHEN 'live' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'ongoing' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'current' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'completed' THEN r.end_date < :currentDate
-                  WHEN 'ended' THEN r.end_date < :currentDate
-                  WHEN 'past' THEN r.end_date < :currentDate
-                  WHEN 'upcoming' THEN r.start_date > :currentDate
-                  WHEN 'future' THEN r.start_date > :currentDate
-                  ELSE TRUE
-              END
-          )
-          AND (
-              EXISTS (
-                  -- Reviews with courses taught by the faculty
-                  SELECT 1
-                  FROM course_review cr
-                  JOIN course_instructor ci ON ci.course_id = cr.course_id
-                  WHERE cr.review_id = r.id
-                    AND ci.instructor_id = :userId
+        SELECT r.id
+        FROM (
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
+            FROM review r
+            WHERE (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
+              AND (:courseId IS NULL OR EXISTS (
+                  SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+              ))
+              AND (
+                  CASE :status
+                      WHEN 'live' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'ongoing' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'current' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'completed' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'ended' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'past' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'upcoming' THEN r.start_date > CAST(:currentDate AS DATE)
+                      WHEN 'future' THEN r.start_date > CAST(:currentDate AS DATE)
+                      ELSE TRUE
+                  END
               )
-              OR EXISTS (
-                  -- Reviews with directly assigned projects from courses taught by the faculty
-                  SELECT 1
-                  FROM review_project rp
-                  JOIN project p ON p.id = rp.project_id
-                  JOIN project_courses pc ON pc.project_id = p.id
-                  JOIN course_instructor ci ON ci.course_id = pc.course_id
-                  WHERE rp.review_id = r.id
-                    AND ci.instructor_id = :userId
+              AND (
+                  EXISTS (
+                      -- Reviews with courses taught by the faculty
+                      SELECT 1
+                      FROM course_review cr
+                      JOIN course_instructor ci ON ci.course_id = cr.course_id
+                      WHERE cr.review_id = r.id
+                        AND ci.instructor_id = :userId
+                  )
+                  OR EXISTS (
+                      -- Reviews with directly assigned projects from courses taught by the faculty
+                      SELECT 1
+                      FROM review_project rp
+                      JOIN project p ON p.id = rp.project_id
+                      JOIN project_courses pc ON pc.project_id = p.id
+                      JOIN course_instructor ci ON ci.course_id = pc.course_id
+                      WHERE rp.review_id = r.id
+                        AND ci.instructor_id = :userId
+                  )
               )
-          )
+        ) r
         ORDER BY 
           CASE WHEN :sortBy = 'name' AND :sortOrder = 'asc' THEN r.name END ASC,
           CASE WHEN :sortBy = 'name' AND :sortOrder = 'desc' THEN r.name END DESC,
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'asc' THEN r.end_date END ASC,
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'desc' THEN r.end_date END DESC,
           CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'asc' THEN r.start_date END ASC,
-          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN r.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN r.created_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun searchReviewIdsForFaculty(
@@ -714,14 +730,14 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
           ))
           AND (
               CASE :status
-                  WHEN 'live' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'ongoing' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'current' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'completed' THEN r.end_date < :currentDate
-                  WHEN 'ended' THEN r.end_date < :currentDate
-                  WHEN 'past' THEN r.end_date < :currentDate
-                  WHEN 'upcoming' THEN r.start_date > :currentDate
-                  WHEN 'future' THEN r.start_date > :currentDate
+                  WHEN 'live' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                  WHEN 'ongoing' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                  WHEN 'current' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                  WHEN 'completed' THEN r.end_date < CAST(:currentDate AS DATE)
+                  WHEN 'ended' THEN r.end_date < CAST(:currentDate AS DATE)
+                  WHEN 'past' THEN r.end_date < CAST(:currentDate AS DATE)
+                  WHEN 'upcoming' THEN r.start_date > CAST(:currentDate AS DATE)
+                  WHEN 'future' THEN r.start_date > CAST(:currentDate AS DATE)
                   ELSE TRUE
               END
           )
@@ -755,37 +771,42 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     ): Int
     
     @Query(value = """
-        SELECT DISTINCT r.id
-        FROM review r
-        JOIN review_project rp ON rp.review_id = r.id
-        JOIN project p ON p.id = rp.project_id
-        JOIN team t ON t.id = p.team_id
-        JOIN team_members tm ON tm.team_id = t.id
-        WHERE tm.user_id = :userId
-          AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:courseId IS NULL OR EXISTS (
-              SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
-          ))
-          AND (
-              CASE :status
-                  WHEN 'live' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'ongoing' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'current' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'completed' THEN r.end_date < :currentDate
-                  WHEN 'ended' THEN r.end_date < :currentDate
-                  WHEN 'past' THEN r.end_date < :currentDate
-                  WHEN 'upcoming' THEN r.start_date > :currentDate
-                  WHEN 'future' THEN r.start_date > :currentDate
-                  ELSE TRUE
-              END
-          )
+        SELECT r.id
+        FROM (
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
+            FROM review r
+            JOIN review_project rp ON rp.review_id = r.id
+            JOIN project p ON p.id = rp.project_id
+            JOIN team t ON t.id = p.team_id
+            JOIN team_members tm ON tm.team_id = t.id
+            WHERE tm.user_id = :userId
+              AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
+              AND (:courseId IS NULL OR EXISTS (
+                  SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+              ))
+              AND (
+                  CASE :status
+                      WHEN 'live' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'ongoing' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'current' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'completed' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'ended' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'past' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'upcoming' THEN r.start_date > CAST(:currentDate AS DATE)
+                      WHEN 'future' THEN r.start_date > CAST(:currentDate AS DATE)
+                      ELSE TRUE
+                  END
+              )
+        ) r
         ORDER BY 
           CASE WHEN :sortBy = 'name' AND :sortOrder = 'asc' THEN r.name END ASC,
           CASE WHEN :sortBy = 'name' AND :sortOrder = 'desc' THEN r.name END DESC,
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'asc' THEN r.end_date END ASC,
           CASE WHEN :sortBy = 'endDate' AND :sortOrder = 'desc' THEN r.end_date END DESC,
           CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'asc' THEN r.start_date END ASC,
-          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC
+          CASE WHEN :sortBy = 'startDate' AND :sortOrder = 'desc' THEN r.start_date END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN r.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN r.created_at END DESC NULLS LAST
         OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
     """, nativeQuery = true)
     fun searchReviewIdsForStudent(
@@ -814,14 +835,14 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
           ))
           AND (
               CASE :status
-                  WHEN 'live' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'ongoing' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'current' THEN r.start_date <= :currentDate AND r.end_date >= :currentDate
-                  WHEN 'completed' THEN r.end_date < :currentDate
-                  WHEN 'ended' THEN r.end_date < :currentDate
-                  WHEN 'past' THEN r.end_date < :currentDate
-                  WHEN 'upcoming' THEN r.start_date > :currentDate
-                  WHEN 'future' THEN r.start_date > :currentDate
+                  WHEN 'live' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                  WHEN 'ongoing' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                  WHEN 'current' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                  WHEN 'completed' THEN r.end_date < CAST(:currentDate AS DATE)
+                  WHEN 'ended' THEN r.end_date < CAST(:currentDate AS DATE)
+                  WHEN 'past' THEN r.end_date < CAST(:currentDate AS DATE)
+                  WHEN 'upcoming' THEN r.start_date > CAST(:currentDate AS DATE)
+                  WHEN 'future' THEN r.start_date > CAST(:currentDate AS DATE)
                   ELSE TRUE
               END
           )

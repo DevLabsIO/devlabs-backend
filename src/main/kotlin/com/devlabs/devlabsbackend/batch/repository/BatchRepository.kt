@@ -20,10 +20,12 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
         ORDER BY 
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN b.name END ASC,
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN b.name END DESC,
-            CASE WHEN :sortBy = 'graduationYear' AND :sortOrder = 'ASC' THEN b.graduation_year END ASC,
-            CASE WHEN :sortBy = 'graduationYear' AND :sortOrder = 'DESC' THEN b.graduation_year END DESC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'ASC' THEN b.join_year END ASC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'DESC' THEN b.join_year END DESC,
             CASE WHEN :sortBy = 'section' AND :sortOrder = 'ASC' THEN b.section END ASC,
-            CASE WHEN :sortBy = 'section' AND :sortOrder = 'DESC' THEN b.section END DESC
+            CASE WHEN :sortBy = 'section' AND :sortOrder = 'DESC' THEN b.section END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN b.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN b.created_at END DESC NULLS LAST
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun findBatchIdsOnly(
@@ -40,7 +42,7 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
     fun countAllBatches(): Long
 
     @Query(value = """
-        SELECT b.id, b.name, b.graduation_year, b.section, b.is_active, b.department_id,
+        SELECT b.id, b.name, b.join_year, b.section, b.is_active, b.department_id,
                d.name as department_name
         FROM batch b
         LEFT JOIN department d ON d.id = b.department_id
@@ -52,14 +54,16 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
         SELECT b.id
         FROM batch b
         WHERE LOWER(b.name) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR CAST(b.graduation_year AS VARCHAR) LIKE CONCAT('%', :query, '%')
+            OR CAST(b.join_year AS VARCHAR) LIKE CONCAT('%', :query, '%')
         ORDER BY 
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN b.name END ASC,
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN b.name END DESC,
-            CASE WHEN :sortBy = 'graduationYear' AND :sortOrder = 'ASC' THEN b.graduation_year END ASC,
-            CASE WHEN :sortBy = 'graduationYear' AND :sortOrder = 'DESC' THEN b.graduation_year END DESC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'ASC' THEN b.join_year END ASC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'DESC' THEN b.join_year END DESC,
             CASE WHEN :sortBy = 'section' AND :sortOrder = 'ASC' THEN b.section END ASC,
-            CASE WHEN :sortBy = 'section' AND :sortOrder = 'DESC' THEN b.section END DESC
+            CASE WHEN :sortBy = 'section' AND :sortOrder = 'DESC' THEN b.section END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN b.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN b.created_at END DESC NULLS LAST
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun searchBatchIdsOnly(
@@ -74,9 +78,74 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
         SELECT COUNT(*)
         FROM batch b
         WHERE LOWER(b.name) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR CAST(b.graduation_year AS VARCHAR) LIKE CONCAT('%', :query, '%')
+            OR CAST(b.join_year AS VARCHAR) LIKE CONCAT('%', :query, '%')
     """, nativeQuery = true)
     fun countSearchBatches(@Param("query") query: String): Long
+
+    @Query(value = """
+        SELECT b.id
+        FROM batch b
+        WHERE b.is_active = :isActive
+        ORDER BY 
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN b.name END ASC,
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN b.name END DESC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'ASC' THEN b.join_year END ASC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'DESC' THEN b.join_year END DESC,
+            CASE WHEN :sortBy = 'section' AND :sortOrder = 'ASC' THEN b.section END ASC,
+            CASE WHEN :sortBy = 'section' AND :sortOrder = 'DESC' THEN b.section END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN b.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN b.created_at END DESC NULLS LAST
+        OFFSET :offset LIMIT :limit
+    """, nativeQuery = true)
+    fun findBatchIdsByIsActive(
+        @Param("isActive") isActive: Boolean,
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<UUID>
+
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM batch b
+        WHERE b.is_active = :isActive
+    """, nativeQuery = true)
+    fun countBatchesByIsActive(@Param("isActive") isActive: Boolean): Long
+
+    @Query(value = """
+        SELECT b.id
+        FROM batch b
+        WHERE b.is_active = :isActive
+        AND (LOWER(b.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR CAST(b.join_year AS VARCHAR) LIKE CONCAT('%', :query, '%'))
+        ORDER BY 
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'ASC' THEN b.name END ASC,
+            CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN b.name END DESC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'ASC' THEN b.join_year END ASC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'DESC' THEN b.join_year END DESC,
+            CASE WHEN :sortBy = 'section' AND :sortOrder = 'ASC' THEN b.section END ASC,
+            CASE WHEN :sortBy = 'section' AND :sortOrder = 'DESC' THEN b.section END DESC,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN b.created_at END ASC NULLS LAST,
+            CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN b.created_at END DESC NULLS LAST
+        OFFSET :offset LIMIT :limit
+    """, nativeQuery = true)
+    fun searchBatchIdsByIsActive(
+        @Param("query") query: String,
+        @Param("isActive") isActive: Boolean,
+        @Param("sortBy") sortBy: String,
+        @Param("sortOrder") sortOrder: String,
+        @Param("offset") offset: Int,
+        @Param("limit") limit: Int
+    ): List<UUID>
+
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM batch b
+        WHERE b.is_active = :isActive
+        AND (LOWER(b.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR CAST(b.join_year AS VARCHAR) LIKE CONCAT('%', :query, '%'))
+    """, nativeQuery = true)
+    fun countSearchBatchesByIsActive(@Param("query") query: String, @Param("isActive") isActive: Boolean): Long
 
     @Query(value = """
         SELECT u.id, u.name, u.email,
@@ -162,7 +231,7 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
     
     override fun findAll(pageable: Pageable): Page<Batch>
     
-    @Query("SELECT b FROM Batch b WHERE LOWER(b.name) LIKE LOWER(CONCAT('%', :query, '%')) OR CAST(b.graduationYear AS string) LIKE CONCAT('%', :query, '%')")
+    @Query("SELECT b FROM Batch b WHERE LOWER(b.name) LIKE LOWER(CONCAT('%', :query, '%')) OR CAST(b.joinYear AS string) LIKE CONCAT('%', :query, '%')")
     fun searchByNameOrYearContainingIgnoreCase(@Param("query") query: String, pageable: Pageable): Page<Batch>
     
     @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Batch b WHERE :semester MEMBER OF b.semester")
@@ -171,7 +240,7 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
     fun findByStudentsContaining(student: User): List<Batch>
 
     @Query(value = """
-        SELECT b.id, b.name, b.graduation_year, b.section, b.is_active, b.department_id,
+        SELECT b.id, b.name, b.join_year, b.section, b.is_active, b.department_id,
                d.name as department_name
         FROM batch b
         LEFT JOIN department d ON d.id = b.department_id
@@ -180,7 +249,7 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
     fun findActiveBatchesNative(): List<Map<String, Any>>
 
     @Query(value = """
-        SELECT DISTINCT b.id, b.name, b.graduation_year, b.section, b.is_active, b.department_id,
+        SELECT DISTINCT b.id, b.name, b.join_year, b.section, b.is_active, b.department_id,
                d.name as department_name
         FROM batch b
         LEFT JOIN department d ON d.id = b.department_id
@@ -204,7 +273,7 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
     fun findActiveBatchIdsByInstructor(@Param("instructorId") instructorId: String): List<UUID>
     
     @Query(value = """
-        SELECT DISTINCT b.id, b.name, b.graduation_year, b.section, b.is_active, b.department_id,
+        SELECT DISTINCT b.id, b.name, b.join_year, b.section, b.is_active, b.department_id,
                d.name as department_name
         FROM batch b
         LEFT JOIN department d ON d.id = b.department_id

@@ -35,9 +35,32 @@ class UserService(
         sortBy: String = "name",
         sortOrder: String = "asc"
     ): PaginatedResponse<UserResponse> {
-        val sort = createSort(sortBy, sortOrder)
-        val pageable = PageRequest.of(page, size, sort)
-        val userPage = userRepository.findByRolePaged(role.ordinal, pageable)
+        val pageable = PageRequest.of(page, size)
+        val userPage = userRepository.findByRolePaged(role.ordinal, sortBy, sortOrder, pageable)
+
+        return PaginatedResponse(
+            data = userPage.content.map { mapToUserResponse(it) },
+            pagination = PaginationInfo(
+                current_page = page + 1,
+                per_page = size,
+                total_pages = userPage.totalPages,
+                total_count = userPage.totalElements.toInt()
+            )
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getAllUsersByRoles(
+        roles: List<Role>,
+        isActive: Boolean?,
+        page: Int,
+        size: Int,
+        sortBy: String = "createdAt",
+        sortOrder: String = "desc"
+    ): PaginatedResponse<UserResponse> {
+        val pageable = PageRequest.of(page, size)
+        val roleOrdinals = roles.map { it.ordinal }
+        val userPage = userRepository.findByRolesAndIsActivePaged(roleOrdinals, isActive, sortBy, sortOrder, pageable)
 
         return PaginatedResponse(
             data = userPage.content.map { mapToUserResponse(it) },
@@ -58,18 +81,22 @@ class UserService(
     @Transactional(readOnly = true)
     @Cacheable(
         value = ["users-list"],
-        key = "#page + '_' + #size + '_' + #sortBy + '_' + #sortOrder",
-        condition = "#page == 0 && #size == 10 && #sortBy == 'name' && #sortOrder == 'asc'"
+        key = "#page + '_' + #size + '_' + #sortBy + '_' + #sortOrder + '_' + #isActive",
+        condition = "#page == 0 && #size == 10 && #sortBy == 'createdAt' && #sortOrder == 'desc' && #isActive == null"
     )
     fun getAllUsers(
+        isActive: Boolean?,
         page: Int,
         size: Int,
-        sortBy: String = "name",
-        sortOrder: String = "asc"
+        sortBy: String = "createdAt",
+        sortOrder: String = "desc"
     ): PaginatedResponse<UserResponse> {
-        val sort = createSort(sortBy, sortOrder)
-        val pageable = PageRequest.of(page, size, sort)
-        val userPage = userRepository.findAllProjected(pageable)
+        val pageable = PageRequest.of(page, size)
+        val userPage = if (isActive != null) {
+            userRepository.findAllProjectedWithIsActive(isActive, sortBy, sortOrder, pageable)
+        } else {
+            userRepository.findAllProjected(sortBy, sortOrder, pageable)
+        }
 
         return PaginatedResponse(
             data = userPage.content.map { mapToUserResponse(it) },
@@ -85,14 +112,20 @@ class UserService(
     @Transactional(readOnly = true)
     fun searchUsers(
         query: String,
+        roles: List<Role>?,
+        isActive: Boolean?,
         page: Int,
         size: Int,
-        sortBy: String = "name",
-        sortOrder: String = "asc"
+        sortBy: String = "createdAt",
+        sortOrder: String = "desc"
     ): PaginatedResponse<UserResponse> {
-        val sort = createSort(sortBy, sortOrder)
-        val pageable = PageRequest.of(page, size, sort)
-        val userPage = userRepository.searchByNameOrEmailContainingIgnoreCase(query, pageable)
+        val pageable = PageRequest.of(page, size)
+        val userPage = if (roles != null && roles.isNotEmpty()) {
+            val roleOrdinals = roles.map { it.ordinal }
+            userRepository.searchByNameOrEmailAndRolesAndIsActive(query, roleOrdinals, isActive, sortBy, sortOrder, pageable)
+        } else {
+            userRepository.searchByNameOrEmailContainingIgnoreCase(query, isActive, sortBy, sortOrder, pageable)
+        }
 
         return PaginatedResponse(
             data = userPage.content.map { mapToUserResponse(it) },

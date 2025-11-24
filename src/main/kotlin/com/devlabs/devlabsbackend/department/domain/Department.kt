@@ -8,7 +8,9 @@ import java.util.*
 @Table(
     name = "department",
     indexes = [
-        Index(name = "idx_department_name", columnList = "name")
+        Index(name = "idx_department_name", columnList = "name"),
+        Index(name = "idx_department_created_at", columnList = "createdAt"),
+        Index(name = "idx_department_updated_at", columnList = "updatedAt")
     ]
 )
 class Department (
@@ -18,4 +20,7 @@ class Department (
     var name: String,
     @OneToMany(mappedBy = "department", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
     val batches: MutableSet<Batch> = mutableSetOf(),
+    
+    val createdAt: java.sql.Timestamp = java.sql.Timestamp.from(java.time.Instant.now()),
+    var updatedAt: java.sql.Timestamp = java.sql.Timestamp.from(java.time.Instant.now())
 )

@@ -29,8 +29,8 @@ class DepartmentService(
     fun getAllDepartments(
         page: Int = 0, 
         size: Int = 10, 
-        sort_by: String = "name", 
-        sort_order: String = "asc"
+        sort_by: String = "createdAt", 
+        sort_order: String = "desc"
     ): PaginatedResponse<DepartmentResponse> {
         val offset = page * size
         val sortOrderNormalized = sort_order.uppercase()
@@ -74,8 +74,8 @@ class DepartmentService(
         sort_order: String? = null
     ): PaginatedResponse<DepartmentResponse> {
         val offset = page * size
-        val sortBy = sort_by ?: "name"
-        val sortOrderNormalized = (sort_order ?: "asc").uppercase()
+        val sortBy = sort_by ?: "createdAt"
+        val sortOrderNormalized = (sort_order ?: "desc").uppercase()
         
         val departmentIds = departmentRepository.findIdsByNameContaining(query, sortBy, sortOrderNormalized, offset, size)
         val totalCount = departmentRepository.countByNameContaining(query)
@@ -182,7 +182,7 @@ fun Department.toDepartmentResponse(): DepartmentResponse {
         DepartmentBatchResponse(
             id = batch.id,
             name = batch.name,
-            graduationYear = batch.graduationYear,
+            joinYear = batch.joinYear,
             section = batch.section
         )
     }

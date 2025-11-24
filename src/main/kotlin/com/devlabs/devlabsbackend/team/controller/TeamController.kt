@@ -38,8 +38,8 @@ class TeamController(
         @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
-            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
-            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
+            val actualSortBy = if (sort_by.isNullOrBlank()) "createdAt" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "desc" else sort_order
             val teams = teamService.getAllTeams(page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(teams)
         } catch (e: Exception) {
@@ -104,8 +104,8 @@ class TeamController(
         @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
-            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
-            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
+            val actualSortBy = if (sort_by.isNullOrBlank()) "createdAt" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "desc" else sort_order
             val teams = teamService.getTeamsByUser(userId, page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(teams)
         } catch (e: NotFoundException) {
@@ -138,8 +138,8 @@ class TeamController(
         @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
-            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
-            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
+            val actualSortBy = if (sort_by.isNullOrBlank()) "createdAt" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "desc" else sort_order
             val teams = teamService.searchTeamsByUser(userId, query, page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(teams)
         } catch (e: NotFoundException) {

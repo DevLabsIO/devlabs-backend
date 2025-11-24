@@ -19,8 +19,8 @@ class DepartmentController(
     fun getAllDepartments(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sort_by: String,
-        @RequestParam(defaultValue = "asc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sort_by: String,
+        @RequestParam(defaultValue = "desc") sort_order: String
     ): ResponseEntity<Any> {
         return try {
             val departments = departmentService.getAllDepartments(page, size, sort_by, sort_order)

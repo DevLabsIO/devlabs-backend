@@ -50,7 +50,7 @@ class ReviewQueryService(
         userId: String,
         page: Int = 0,
         size: Int = 10,
-        sortBy: String = "startDate",
+        sortBy: String = "createdAt",
         sortOrder: String = "desc"
     ): PaginatedResponse<ReviewResponse> {
         val userRole = SecurityUtils.getCurrentUserRoleFromJwt() 
@@ -251,7 +251,7 @@ class ReviewQueryService(
         status: String?,
         page: Int = 0,
         size: Int = 10,
-        sortBy: String = "startDate",
+        sortBy: String = "createdAt",
         sortOrder: String = "desc"
     ): PaginatedResponse<ReviewResponse> {
         val user = userRepository.findById(userId).orElseThrow {

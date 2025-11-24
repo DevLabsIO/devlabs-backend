@@ -109,7 +109,7 @@ interface CourseRepository : JpaRepository<Course, UUID> {
     fun findStudentsByCourseIds(@Param("courseIds") courseIds: List<UUID>): List<Map<String, Any>>
 
     @Query(value = """
-        SELECT cb.course_id, b.id, b.name, b.section, b.graduation_year
+        SELECT cb.course_id, b.id, b.name, b.section, b.join_year
         FROM course_batch cb
         JOIN batch b ON b.id = cb.batch_id
         WHERE cb.course_id IN (:courseIds)
@@ -270,7 +270,7 @@ interface CourseRepository : JpaRepository<Course, UUID> {
     ): Long
 
     @Query(value = """
-        SELECT b.id, b.name, b.section, b.graduation_year
+        SELECT b.id, b.name, b.section, b.join_year
         FROM course_batch cb
         JOIN batch b ON b.id = cb.batch_id
         WHERE cb.course_id = :courseId
@@ -279,8 +279,8 @@ interface CourseRepository : JpaRepository<Course, UUID> {
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN b.name END DESC,
             CASE WHEN :sortBy = 'section' AND :sortOrder = 'ASC' THEN b.section END ASC,
             CASE WHEN :sortBy = 'section' AND :sortOrder = 'DESC' THEN b.section END DESC,
-            CASE WHEN :sortBy = 'graduationYear' AND :sortOrder = 'ASC' THEN b.graduation_year END ASC,
-            CASE WHEN :sortBy = 'graduationYear' AND :sortOrder = 'DESC' THEN b.graduation_year END DESC
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'ASC' THEN b.join_year END ASC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'DESC' THEN b.join_year END DESC
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun findBatchesByCourseId(
@@ -300,7 +300,7 @@ interface CourseRepository : JpaRepository<Course, UUID> {
     fun countBatchesByCourseId(@Param("courseId") courseId: UUID): Long
 
     @Query(value = """
-        SELECT b.id, b.name, b.section, b.graduation_year
+        SELECT b.id, b.name, b.section, b.join_year
         FROM course_batch cb
         JOIN batch b ON b.id = cb.batch_id
         WHERE cb.course_id = :courseId
@@ -311,8 +311,8 @@ interface CourseRepository : JpaRepository<Course, UUID> {
             CASE WHEN :sortBy = 'name' AND :sortOrder = 'DESC' THEN b.name END DESC,
             CASE WHEN :sortBy = 'section' AND :sortOrder = 'ASC' THEN b.section END ASC,
             CASE WHEN :sortBy = 'section' AND :sortOrder = 'DESC' THEN b.section END DESC,
-            CASE WHEN :sortBy = 'graduationYear' AND :sortOrder = 'ASC' THEN b.graduation_year END ASC,
-            CASE WHEN :sortBy = 'graduationYear' AND :sortOrder = 'DESC' THEN b.graduation_year END DESC
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'ASC' THEN b.join_year END ASC,
+            CASE WHEN :sortBy = 'joinYear' AND :sortOrder = 'DESC' THEN b.join_year END DESC
         OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun searchBatchesByCourseId(

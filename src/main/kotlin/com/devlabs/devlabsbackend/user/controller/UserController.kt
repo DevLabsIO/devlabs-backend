@@ -15,28 +15,29 @@ class UserController(private val userService: UserService) {
 
     @GetMapping
     fun getAllUsers(
-        @RequestParam(required = false) role: String?,
+        @RequestParam(required = false) role: List<String>?,
+        @RequestParam(required = false) isActive: Boolean?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
         @RequestParam(required = false) sort_by: String?,
         @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
-            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
-            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
+            val actualSortBy = if (sort_by.isNullOrBlank()) "createdAt" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "desc" else sort_order
             
-            if (role != null) {
+            if (role != null && role.isNotEmpty()) {
                 try {
-                    val roleEnum = Role.valueOf(role.uppercase())
-                    val paginatedUsers = userService.getAllUsersByRole(roleEnum, page, size, actualSortBy, actualSortOrder)
+                    val roleEnums = role.map { Role.valueOf(it.uppercase()) }
+                    val paginatedUsers = userService.getAllUsersByRoles(roleEnums, isActive, page, size, actualSortBy, actualSortOrder)
                     ResponseEntity.ok(paginatedUsers)
                 } catch (e: IllegalArgumentException) {
                     ResponseEntity.badRequest().body(
-                        mapOf("message" to "Invalid role: $role. Valid roles are: ${Role.values().joinToString(", ")}")
+                        mapOf("message" to "Invalid role in: $role. Valid roles are: ${Role.values().joinToString(", ")}")
                     )
                 }
             } else {
-                val paginatedUsers = userService.getAllUsers(page, size, actualSortBy, actualSortOrder)
+                val paginatedUsers = userService.getAllUsers(isActive, page, size, actualSortBy, actualSortOrder)
                 ResponseEntity.ok(paginatedUsers)
             }
         } catch (e: Exception) {
@@ -48,15 +49,20 @@ class UserController(private val userService: UserService) {
     @GetMapping("/search")
     fun searchUsers(
         @RequestParam query: String,
+        @RequestParam(required = false) role: List<String>?,
+        @RequestParam(required = false) isActive: Boolean?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
         @RequestParam(required = false) sort_by: String?,
         @RequestParam(required = false) sort_order: String?
     ): ResponseEntity<Any> {
         return try {
-            val actualSortBy = if (sort_by.isNullOrBlank()) "name" else sort_by
-            val actualSortOrder = if (sort_order.isNullOrBlank()) "asc" else sort_order
-            val paginatedUsers = userService.searchUsers(query, page, size, actualSortBy, actualSortOrder)
+            val actualSortBy = if (sort_by.isNullOrBlank()) "createdAt" else sort_by
+            val actualSortOrder = if (sort_order.isNullOrBlank()) "desc" else sort_order
+            val roleEnums = role?.mapNotNull { 
+                try { Role.valueOf(it.uppercase()) } catch (e: IllegalArgumentException) { null }
+            }
+            val paginatedUsers = userService.searchUsers(query, roleEnums, isActive, page, size, actualSortBy, actualSortOrder)
             ResponseEntity.ok(paginatedUsers)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

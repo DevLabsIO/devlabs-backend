@@ -53,9 +53,16 @@ class BatchService(
             }
         }
 
+        // Generate batch name following evalify naming convention: {joinYear}{DepartmentName}{Section}
+        val batchName = if (department != null) {
+            "${request.joinYear.value}${department.name}${request.section}"
+        } else {
+            request.name
+        }
+
         val batch = Batch(
-            name = request.name,
-            graduationYear = request.graduationYear,
+            name = batchName,
+            joinYear = request.joinYear,
             section = request.section,
             isActive = request.isActive,
             department = department,
@@ -90,8 +97,7 @@ class BatchService(
             NotFoundException("Batch with id $batchId not found")
         }
 
-        request.name?.let { batch.name = it }
-        request.graduationYear?.let { batch.graduationYear = it }
+        request.joinYear?.let { batch.joinYear = it }
         request.section?.let { batch.section = it }
         request.isActive?.let { batch.isActive = it }
         request.departmentId?.let { departmentId ->
@@ -99,6 +105,16 @@ class BatchService(
                 NotFoundException("Department with id $departmentId not found")
             }
             batch.department = department
+        }
+
+        // Regenerate batch name if any of the relevant fields changed
+        if (request.joinYear != null || request.section != null || request.departmentId != null) {
+            val department = batch.department
+            if (department != null) {
+                batch.name = "${batch.joinYear.value}${department.name}${batch.section}"
+            }
+        } else {
+            request.name?.let { batch.name = it }
         }
 
         val savedBatch = batchRepository.save(batch)
@@ -125,21 +141,30 @@ class BatchService(
 
     @Cacheable(
         value = ["batches-list"],
-        key = "'batches-' + #page + '-' + #size + '-' + #sortBy + '-' + #sortOrder",
-        condition = "#page == 0 && #size == 10"
+        key = "'batches-' + #page + '-' + #size + '-' + #sortBy + '-' + #sortOrder + '-' + #isActive",
+        condition = "#page == 0 && #size == 10 && #isActive == null"
     )
     fun getAllBatches(
+        isActive: Boolean?,
         page: Int = 0,
         size: Int = 10,
-        sortBy: String? = "name",
-        sortOrder: String? = "asc",
+        sortBy: String? = "createdAt",
+        sortOrder: String? = "desc",
     ): PaginatedResponse<BatchResponse> {
-        val actualSortBy = sortBy ?: "name"
+        val actualSortBy = sortBy ?: "createdAt"
         val actualSortOrder = sortOrder?.uppercase() ?: "ASC"
         val offset = page * size
         
-        val batchIds = batchRepository.findBatchIdsOnly(actualSortBy, actualSortOrder, offset, size)
-        val totalCount = batchRepository.countAllBatches()
+        val batchIds = if (isActive != null) {
+            batchRepository.findBatchIdsByIsActive(isActive, actualSortBy, actualSortOrder, offset, size)
+        } else {
+            batchRepository.findBatchIdsOnly(actualSortBy, actualSortOrder, offset, size)
+        }
+        val totalCount = if (isActive != null) {
+            batchRepository.countBatchesByIsActive(isActive)
+        } else {
+            batchRepository.countAllBatches()
+        }
 
         if (batchIds.isEmpty()) {
             return PaginatedResponse(
@@ -169,17 +194,26 @@ class BatchService(
 
     fun searchBatches(
         query: String,
+        isActive: Boolean?,
         page: Int = 0,
         size: Int = 10,
         sortBy: String? = null,
         sortOrder: String? = null,
     ): PaginatedResponse<BatchResponse> {
-        val actualSortBy = sortBy ?: "name"
+        val actualSortBy = sortBy ?: "createdAt"
         val actualSortOrder = sortOrder?.uppercase() ?: "ASC"
         val offset = page * size
         
-        val batchIds = batchRepository.searchBatchIdsOnly(query, actualSortBy, actualSortOrder, offset, size)
-        val totalCount = batchRepository.countSearchBatches(query)
+        val batchIds = if (isActive != null) {
+            batchRepository.searchBatchIdsByIsActive(query, isActive, actualSortBy, actualSortOrder, offset, size)
+        } else {
+            batchRepository.searchBatchIdsOnly(query, actualSortBy, actualSortOrder, offset, size)
+        }
+        val totalCount = if (isActive != null) {
+            batchRepository.countSearchBatchesByIsActive(query, isActive)
+        } else {
+            batchRepository.countSearchBatches(query)
+        }
 
         if (batchIds.isEmpty()) {
             return PaginatedResponse(
@@ -352,12 +386,40 @@ class BatchService(
         batchRepository.save(batch)
     }
 
+    @Transactional(readOnly = true)
+    fun getAvailableStudents(batchId: UUID, query: String): List<UserResponse> {
+        batchRepository.findById(batchId).orElseThrow {
+            NotFoundException("Batch with id $batchId not found")
+        }
+
+        val studentsInBatch = batchRepository.findStudentsByBatchIdNative(batchId, "name", "ASC", 0, Int.MAX_VALUE)
+        val studentIdsInBatch = studentsInBatch.map { it["id"].toString() }.toSet()
+
+        val allStudents = userRepository.findByRole(0)
+        
+        val availableStudents = allStudents
+            .filter { !studentIdsInBatch.contains(it["id"].toString()) }
+            .filter { 
+                if (query.isBlank()) true 
+                else {
+                    val name = it["name"]?.toString()?.lowercase() ?: ""
+                    val email = it["email"]?.toString()?.lowercase() ?: ""
+                    val profileId = it["profile_id"]?.toString()?.lowercase() ?: ""
+                    val searchQuery = query.lowercase()
+                    name.contains(searchQuery) || email.contains(searchQuery) || profileId.contains(searchQuery)
+                }
+            }
+            .map { mapToUserResponse(it) }
+
+        return availableStudents
+    }
+
     private fun mapToBatchResponse(data: Map<String, Any>): BatchResponse {
         val departmentId = data["department_id"]?.let { UUID.fromString(it.toString()) }
         return BatchResponse(
             id = UUID.fromString(data["id"].toString()),
             name = data["name"].toString(),
-            graduationYear = Year.of((data["graduation_year"] as Number).toInt()),
+            joinYear = Year.of((data["join_year"] as Number).toInt()),
             section = data["section"].toString(),
             isActive = data["is_active"] as Boolean,
             department = departmentId?.let {
@@ -388,7 +450,7 @@ fun Batch.toBatchResponse(): BatchResponse {
     return BatchResponse(
         id = this.id,
         name = this.name,
-        graduationYear = this.graduationYear,
+        joinYear = this.joinYear,
         section = this.section,
         isActive = this.isActive,
         department = this.department?.let {

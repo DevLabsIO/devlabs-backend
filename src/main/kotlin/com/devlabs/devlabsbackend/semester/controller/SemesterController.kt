@@ -20,23 +20,25 @@ class SemesterController(private val semesterService: SemesterService) {
     
     @GetMapping
     fun getAllSemesters(
+        @RequestParam(required = false) isActive: Boolean?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sortBy: String,
-        @RequestParam(defaultValue = "asc") sortOrder: String
+        @RequestParam(defaultValue = "createdAt") sortBy: String,
+        @RequestParam(defaultValue = "desc") sortOrder: String
     ): ResponseEntity<PaginatedResponse<SemesterResponse>> {
-        return ResponseEntity.ok(semesterService.getAllSemestersPaginated(page, size, sortBy, sortOrder))
+        return ResponseEntity.ok(semesterService.getAllSemestersPaginated(isActive, page, size, sortBy, sortOrder))
     }
     
     @GetMapping("/search")
     fun searchSemesters(
         @RequestParam query: String,
+        @RequestParam(required = false) isActive: Boolean?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "name") sortBy: String,
-        @RequestParam(defaultValue = "asc") sortOrder: String
+        @RequestParam(defaultValue = "createdAt") sortBy: String,
+        @RequestParam(defaultValue = "desc") sortOrder: String
     ): ResponseEntity<PaginatedResponse<SemesterResponse>> {
-        return ResponseEntity.ok(semesterService.searchSemesterPaginated(query, page, size, sortBy, sortOrder))
+        return ResponseEntity.ok(semesterService.searchSemesterPaginated(query, isActive, page, size, sortBy, sortOrder))
     }
     
     @GetMapping("/active")
@@ -108,6 +110,25 @@ class SemesterController(private val semesterService: SemesterService) {
         return try {
             val course = semesterService.createCourseForSemester(id, courseRequest)
             ResponseEntity(course, HttpStatus.CREATED)
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(null)
+        }
+    }
+
+    @PutMapping("/{semesterId}/courses/{courseId}")
+    fun updateCourseForSemester(
+        @PathVariable semesterId: UUID,
+        @PathVariable courseId: UUID,
+        @RequestBody courseRequest: com.devlabs.devlabsbackend.course.domain.dto.UpdateCourseRequest
+    ): ResponseEntity<CourseResponse> {
+        return try {
+            val course = semesterService.updateCourseForSemester(semesterId, courseId, courseRequest)
+            ResponseEntity(course, HttpStatus.OK)
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(null)
+        } catch (e: com.devlabs.devlabsbackend.core.exception.NotFoundException) {
+            ResponseEntity.notFound().build()
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(null)

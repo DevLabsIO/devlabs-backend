@@ -81,7 +81,7 @@ class ProjectService(
         value = [CacheConfig.PROJECTS_LIST],
         key = "'projects_team_' + #teamId + '_' + #page + '_' + #size"
     )
-    fun getProjectsByTeam(teamId: UUID, page: Int = 0, size: Int = 10, sortBy: String = "title", sortOrder: String = "asc"): PaginatedResponse<ProjectResponse> {
+    fun getProjectsByTeam(teamId: UUID, page: Int = 0, size: Int = 10, sortBy: String = "createdAt", sortOrder: String = "desc"): PaginatedResponse<ProjectResponse> {
 
         if (!teamRepository.existsById(teamId)) {
             throw NotFoundException("Team with id $teamId not found")
@@ -177,8 +177,8 @@ class ProjectService(
         courseId: UUID,
         page: Int = 0,
         size: Int = 10,
-        sortBy: String = "title",
-        sortOrder: String = "asc"
+        sortBy: String = "createdAt",
+        sortOrder: String = "desc"
     ): PaginatedResponse<ProjectResponse> {
         if (!courseRepository.existsById(courseId)) {
             throw NotFoundException("Course with id $courseId not found")
@@ -414,7 +414,7 @@ class ProjectService(
         value = [CacheConfig.PROJECTS_LIST],
         key = "'projects_user_' + #userId + '_' + #page + '_' + #size"
     )
-    fun getProjectsForUser(userId: String, page: Int = 0, size: Int = 10, sortBy: String = "title", sortOrder: String = "asc"): PaginatedResponse<ProjectResponse> {
+    fun getProjectsForUser(userId: String, page: Int = 0, size: Int = 10, sortBy: String = "createdAt", sortOrder: String = "desc"): PaginatedResponse<ProjectResponse> {
         if (!userRepository.existsById(userId)) {
             throw NotFoundException("User with id $userId not found")
         }

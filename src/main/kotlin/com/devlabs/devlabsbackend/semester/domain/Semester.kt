@@ -12,7 +12,9 @@ import java.util.*
     indexes = [
         Index(name = "idx_semester_is_active", columnList = "isActive"),
         Index(name = "idx_semester_year", columnList = "year"),
-        Index(name = "idx_semester_name_year", columnList = "name, year")
+        Index(name = "idx_semester_name_year", columnList = "name, year"),
+        Index(name = "idx_semester_created_at", columnList = "createdAt"),
+        Index(name = "idx_semester_updated_at", columnList = "updatedAt")
     ]
 )
 class Semester(
@@ -36,4 +38,7 @@ class Semester(
 
     @ManyToMany(mappedBy = "semester", fetch = FetchType.LAZY)
     var batches: MutableSet<Batch> = mutableSetOf(),
+    
+    val createdAt: java.sql.Timestamp = java.sql.Timestamp.from(java.time.Instant.now()),
+    var updatedAt: java.sql.Timestamp = java.sql.Timestamp.from(java.time.Instant.now())
 )
