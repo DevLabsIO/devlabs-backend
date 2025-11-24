@@ -12,14 +12,20 @@ import org.springframework.web.bind.annotation.*
 import java.util.*
 
 @RestController
-@RequestMapping("/kanban")
+@RequestMapping("/api/kanban")
 class KanbanController(
     private val kanbanService: KanbanService
 ) {
     @GetMapping("/project/{projectId}")
     fun getKanbanBoard(@PathVariable projectId: UUID): ResponseEntity<KanbanBoardResponse> {
-        val board = kanbanService.getOrCreateBoardForProject(projectId)
+        val board = kanbanService.getBoardForProject(projectId)
         return ResponseEntity.ok(board)
+    }
+
+    @PostMapping("/project/{projectId}")
+    fun createKanbanBoard(@PathVariable projectId: UUID): ResponseEntity<KanbanBoardResponse> {
+        val board = kanbanService.createBoardForProject(projectId)
+        return ResponseEntity.status(HttpStatus.CREATED).body(board)
     }
 
     @PostMapping("/tasks")

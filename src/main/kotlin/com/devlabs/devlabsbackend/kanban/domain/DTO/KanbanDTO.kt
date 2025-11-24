@@ -36,7 +36,8 @@ data class KanbanTaskResponse(
     val position: Int,
     val createdBy: UserResponse,
     val createdAt: Timestamp,
-    val updatedAt: Timestamp
+    val updatedAt: Timestamp,
+    val projectId: UUID? = null
 )
 
 data class KanbanColumnResponse(
@@ -65,6 +66,19 @@ fun KanbanTask.toTaskResponse(): KanbanTaskResponse {
         createdBy = this.createdBy.toUserResponse(),
         createdAt = this.createdAt,
         updatedAt = this.updatedAt
+    )
+}
+
+fun KanbanTask.toTaskResponseWithProject(projectId: UUID): KanbanTaskResponse {
+    return KanbanTaskResponse(
+        id = this.id,
+        title = this.title,
+        description = this.description,
+        position = this.position,
+        createdBy = this.createdBy.toUserResponse(),
+        createdAt = this.createdAt,
+        updatedAt = this.updatedAt,
+        projectId = projectId
     )
 }
 
