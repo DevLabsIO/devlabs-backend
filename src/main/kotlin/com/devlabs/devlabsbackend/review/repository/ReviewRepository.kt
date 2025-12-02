@@ -732,8 +732,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             FROM review r
             WHERE 1=1
               AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-              AND (:courseId IS NULL OR EXISTS (
-                  SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+              AND (:courseId IS NULL OR (
+                  EXISTS (SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId)
+                  OR EXISTS (SELECT 1 FROM review_batch rb JOIN course_batch cb ON cb.batch_id = rb.batch_id WHERE rb.review_id = r.id AND cb.course_id = :courseId)
+                  OR EXISTS (SELECT 1 FROM review_project rp JOIN project_courses pc ON pc.project_id = rp.project_id WHERE rp.review_id = r.id AND pc.course_id = :courseId)
               ))
               AND (
                   CASE :status
@@ -776,8 +778,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
         FROM review r
         WHERE 1=1
           AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:courseId IS NULL OR EXISTS (
-              SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+          AND (:courseId IS NULL OR (
+              EXISTS (SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId)
+              OR EXISTS (SELECT 1 FROM review_batch rb JOIN course_batch cb ON cb.batch_id = rb.batch_id WHERE rb.review_id = r.id AND cb.course_id = :courseId)
+              OR EXISTS (SELECT 1 FROM review_project rp JOIN project_courses pc ON pc.project_id = rp.project_id WHERE rp.review_id = r.id AND pc.course_id = :courseId)
           ))
           AND (
               CASE :status
@@ -806,8 +810,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
             FROM review r
             WHERE (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-              AND (:courseId IS NULL OR EXISTS (
-                  SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+              AND (:courseId IS NULL OR (
+                  EXISTS (SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId)
+                  OR EXISTS (SELECT 1 FROM review_batch rb JOIN course_batch cb ON cb.batch_id = rb.batch_id WHERE rb.review_id = r.id AND cb.course_id = :courseId)
+                  OR EXISTS (SELECT 1 FROM review_project rp JOIN project_courses pc ON pc.project_id = rp.project_id WHERE rp.review_id = r.id AND pc.course_id = :courseId)
               ))
               AND (
                   CASE :status
@@ -823,10 +829,8 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                   END
               )
               AND (
-                  -- Reviews created by the faculty
                   r.created_by_id = :userId
                   OR EXISTS (
-                      -- Reviews with courses taught by the faculty
                       SELECT 1
                       FROM course_review cr
                       JOIN course_instructor ci ON ci.course_id = cr.course_id
@@ -834,7 +838,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                         AND ci.instructor_id = :userId
                   )
                   OR EXISTS (
-                      -- Reviews with directly assigned projects from courses taught by the faculty
                       SELECT 1
                       FROM review_project rp
                       JOIN project p ON p.id = rp.project_id
@@ -844,7 +847,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                         AND ci.instructor_id = :userId
                   )
                   OR EXISTS (
-                      -- Reviews assigned to batches where faculty teaches courses that have those batches
                       SELECT 1
                       FROM review_batch rb
                       JOIN course_batch cb ON cb.batch_id = rb.batch_id
@@ -881,8 +883,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
         SELECT COUNT(DISTINCT r.id)
         FROM review r
         WHERE (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:courseId IS NULL OR EXISTS (
-              SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+          AND (:courseId IS NULL OR (
+              EXISTS (SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId)
+              OR EXISTS (SELECT 1 FROM review_batch rb JOIN course_batch cb ON cb.batch_id = rb.batch_id WHERE rb.review_id = r.id AND cb.course_id = :courseId)
+              OR EXISTS (SELECT 1 FROM review_project rp JOIN project_courses pc ON pc.project_id = rp.project_id WHERE rp.review_id = r.id AND pc.course_id = :courseId)
           ))
           AND (
               CASE :status
@@ -898,10 +902,8 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
               END
           )
           AND (
-              -- Reviews created by the faculty
               r.created_by_id = :userId
               OR EXISTS (
-                  -- Reviews with courses taught by the faculty
                   SELECT 1
                   FROM course_review cr
                   JOIN course_instructor ci ON ci.course_id = cr.course_id
@@ -909,7 +911,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                     AND ci.instructor_id = :userId
               )
               OR EXISTS (
-                  -- Reviews with directly assigned projects from courses taught by the faculty
                   SELECT 1
                   FROM review_project rp
                   JOIN project p ON p.id = rp.project_id
@@ -919,7 +920,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                     AND ci.instructor_id = :userId
               )
               OR EXISTS (
-                  -- Reviews assigned to batches where faculty teaches courses that have those batches
                   SELECT 1
                   FROM review_batch rb
                   JOIN course_batch cb ON cb.batch_id = rb.batch_id
@@ -943,7 +943,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
             FROM review r
             WHERE r.id IN (
-                -- Direct project assignment
                 SELECT rp.review_id
                 FROM review_project rp
                 JOIN project p ON p.id = rp.project_id
@@ -953,7 +952,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 
                 UNION
                 
-                -- Course assignment
                 SELECT cr.review_id
                 FROM course_review cr
                 JOIN project_courses pc ON pc.course_id = cr.course_id
@@ -964,7 +962,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 
                 UNION
                 
-                -- Batch assignment
                 SELECT rb.review_id
                 FROM review_batch rb
                 JOIN batch_student bs ON rb.batch_id = bs.batch_id
@@ -972,7 +969,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 
                 UNION
                 
-                -- Semester assignment
                 SELECT cr.review_id
                 FROM course_review cr
                 JOIN course c ON c.id = cr.course_id
@@ -981,8 +977,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 WHERE bs.student_id = :userId
             )
               AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-              AND (:courseId IS NULL OR EXISTS (
-                  SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+              AND (:courseId IS NULL OR (
+                  EXISTS (SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId)
+                  OR EXISTS (SELECT 1 FROM review_batch rb JOIN course_batch cb ON cb.batch_id = rb.batch_id WHERE rb.review_id = r.id AND cb.course_id = :courseId)
+                  OR EXISTS (SELECT 1 FROM review_project rp JOIN project_courses pc ON pc.project_id = rp.project_id WHERE rp.review_id = r.id AND pc.course_id = :courseId)
               ))
               AND (
                   CASE :status
@@ -1027,7 +1025,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             SELECT r.id as review_id
             FROM review r
             WHERE r.id IN (
-                -- Direct project assignment
                 SELECT rp.review_id
                 FROM review_project rp
                 JOIN project p ON p.id = rp.project_id
@@ -1037,7 +1034,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 
                 UNION
                 
-                -- Course assignment
                 SELECT cr.review_id
                 FROM course_review cr
                 JOIN project_courses pc ON pc.course_id = cr.course_id
@@ -1048,7 +1044,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 
                 UNION
                 
-                -- Batch assignment
                 SELECT rb.review_id
                 FROM review_batch rb
                 JOIN batch_student bs ON rb.batch_id = bs.batch_id
@@ -1056,7 +1051,6 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 
                 UNION
                 
-                -- Semester assignment
                 SELECT cr.review_id
                 FROM course_review cr
                 JOIN course c ON c.id = cr.course_id
@@ -1065,8 +1059,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 WHERE bs.student_id = :userId
             )
               AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-              AND (:courseId IS NULL OR EXISTS (
-                  SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+              AND (:courseId IS NULL OR (
+                  EXISTS (SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId)
+                  OR EXISTS (SELECT 1 FROM review_batch rb JOIN course_batch cb ON cb.batch_id = rb.batch_id WHERE rb.review_id = r.id AND cb.course_id = :courseId)
+                  OR EXISTS (SELECT 1 FROM review_project rp JOIN project_courses pc ON pc.project_id = rp.project_id WHERE rp.review_id = r.id AND pc.course_id = :courseId)
               ))
               AND (
                   CASE :status
