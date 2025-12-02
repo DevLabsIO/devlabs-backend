@@ -709,12 +709,42 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 EXISTS(SELECT 1 FROM review WHERE id = :reviewId)
             WHEN :role = 'STUDENT' THEN
                 EXISTS(
+                    -- Direct project assignment
                     SELECT 1 FROM review_project rp
                     JOIN project p ON p.id = rp.project_id
                     JOIN team t ON t.id = p.team_id
                     JOIN team_members tm ON tm.team_id = t.id
                     WHERE rp.review_id = :reviewId
                       AND tm.user_id = :userId
+                    
+                    UNION
+                    
+                    -- Course assignment via project
+                    SELECT 1 FROM course_review cr
+                    JOIN project_courses pc ON pc.course_id = cr.course_id
+                    JOIN project p ON p.id = pc.project_id
+                    JOIN team t ON t.id = p.team_id
+                    JOIN team_members tm ON tm.team_id = t.id
+                    WHERE cr.review_id = :reviewId
+                      AND tm.user_id = :userId
+                    
+                    UNION
+                    
+                    -- Batch assignment
+                    SELECT 1 FROM review_batch rb
+                    JOIN batch_student bs ON rb.batch_id = bs.batch_id
+                    WHERE rb.review_id = :reviewId
+                      AND bs.student_id = :userId
+                    
+                    UNION
+                    
+                    -- Semester assignment (course linked to semester, student in batch of that semester)
+                    SELECT 1 FROM course_review cr
+                    JOIN course c ON c.id = cr.course_id
+                    JOIN batch_semester bsem ON bsem.semester_id = c.semester_id
+                    JOIN batch_student bs ON bs.batch_id = bsem.batch_id
+                    WHERE cr.review_id = :reviewId
+                      AND bs.student_id = :userId
                 )
             ELSE FALSE
         END

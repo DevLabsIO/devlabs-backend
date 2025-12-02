@@ -4,6 +4,8 @@ import com.devlabs.devlabsbackend.course.domain.Course
 import com.devlabs.devlabsbackend.review.domain.Review
 import com.devlabs.devlabsbackend.team.domain.Team
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.sql.Timestamp
 import java.time.Instant
 import java.util.*
@@ -14,6 +16,13 @@ enum class ProjectStatus {
     COMPLETED,
     REJECTED
 }
+
+data class ProjectReference(
+    val id: String = UUID.randomUUID().toString(),
+    val title: String,
+    val url: String? = null,
+    val description: String? = null
+)
 
 @Entity
 @Table(
@@ -62,6 +71,14 @@ class Project(
         inverseJoinColumns = [JoinColumn(name = "review_id")]
     )
     var reviews: MutableSet<Review> = mutableSetOf(),
+    
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "project_references", columnDefinition = "jsonb")
+    var references: MutableList<ProjectReference>? = mutableListOf(),
+    
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "uploaded_files", columnDefinition = "jsonb")
+    var uploadedFiles: MutableList<String>? = mutableListOf(),
     
     val createdAt: Timestamp = Timestamp.from(Instant.now()),
     var updatedAt: Timestamp = Timestamp.from(Instant.now())

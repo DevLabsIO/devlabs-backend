@@ -7,6 +7,7 @@ import com.devlabs.devlabsbackend.core.pagination.PaginationInfo
 import com.devlabs.devlabsbackend.course.repository.CourseRepository
 import com.devlabs.devlabsbackend.project.domain.Project
 import com.devlabs.devlabsbackend.project.domain.ProjectStatus
+import com.devlabs.devlabsbackend.project.domain.ProjectReference
 import com.devlabs.devlabsbackend.project.domain.dto.CreateProjectRequest
 import com.devlabs.devlabsbackend.project.domain.dto.CourseInfo
 import com.devlabs.devlabsbackend.project.domain.dto.ProjectResponse
@@ -23,7 +24,6 @@ import org.springframework.cache.annotation.Caching
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
-import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.sql.Timestamp
@@ -38,6 +38,7 @@ class ProjectService(
     private val userRepository: UserRepository
 ) {
     
+    @Transactional
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
@@ -60,6 +61,16 @@ class ProjectService(
             } else {
                 mutableSetOf()
             }
+            
+            val references = projectData.references.map { refRequest ->
+                ProjectReference(
+                    id = refRequest.id ?: UUID.randomUUID().toString(),
+                    title = refRequest.title,
+                    url = refRequest.url,
+                    description = refRequest.description
+                )
+            }.toMutableList()
+            
             val project = Project(
                 title = projectData.title,
                 description = projectData.description,
@@ -67,8 +78,11 @@ class ProjectService(
                 githubUrl = projectData.githubUrl,
                 status = if (courses.isEmpty()) ProjectStatus.ONGOING else ProjectStatus.PROPOSED,
                 team = team,
-                courses = courses
+                courses = courses,
+                references = references,
+                uploadedFiles = projectData.uploadedFiles.toMutableList()
             )
+            
             val savedProject = projectRepository.save(project)
             return savedProject.toProjectResponse()
         } catch (e: Exception) {
@@ -117,12 +131,14 @@ class ProjectService(
         )
     }
     
+    @Transactional(readOnly = true)
     @Cacheable(value = [CacheConfig.PROJECT_DETAIL], key = "'project_' + #projectId")
     fun getProjectById(projectId: UUID): ProjectResponse {
         val project = getProjectEntityById(projectId)
         return project.toProjectResponse()
     }
     
+    @Transactional(readOnly = true)
     private fun getProjectEntityById(projectId: UUID): Project {
         return projectRepository.findByIdWithRelations(projectId) 
             ?: throw NotFoundException("Project with id $projectId not found")
@@ -174,6 +190,7 @@ class ProjectService(
         )
     }
     
+    @Transactional
     @Caching(
         evict = [
             CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true),
@@ -186,13 +203,34 @@ class ProjectService(
     fun updateProject(projectId: UUID, updateData: UpdateProjectRequest, requesterId: String): ProjectResponse {
         val project = getProjectEntityById(projectId)
 
-        if (project.status !in listOf(ProjectStatus.PROPOSED, ProjectStatus.REJECTED)) {
-            throw IllegalArgumentException("Project cannot be edited in current status: ${project.status}")
-        }
         updateData.title?.let { project.title = it }
         updateData.description?.let { project.description = it }
         updateData.objectives?.let { project.objectives = it }
         updateData.githubUrl?.let { project.githubUrl = it }
+        
+        updateData.uploadedFiles?.let { files ->
+            if (project.uploadedFiles == null) {
+                project.uploadedFiles = mutableListOf()
+            }
+            project.uploadedFiles?.clear()
+            project.uploadedFiles?.addAll(files)
+        }
+        
+        updateData.references?.let { refRequests ->
+            if (project.references == null) {
+                project.references = mutableListOf()
+            }
+            project.references?.clear()
+            val newReferences = refRequests.map { refRequest ->
+                ProjectReference(
+                    id = refRequest.id ?: UUID.randomUUID().toString(),
+                    title = refRequest.title,
+                    url = refRequest.url,
+                    description = refRequest.description
+                )
+            }
+            project.references?.addAll(newReferences)
+        }
 
         project.updatedAt = Timestamp.from(Instant.now())
 
@@ -316,6 +354,7 @@ class ProjectService(
         )
     }
     
+    @Transactional(readOnly = true)
     @Cacheable(
         value = [CacheConfig.PROJECTS_LIST],
         key = "'projects_search_' + #userId + '_' + #courseId + '_' + #query + '_' + #page + '_' + #size"
@@ -386,7 +425,7 @@ class ProjectService(
         value = [CacheConfig.PROJECTS_LIST],
         key = "'projects_active_semester_' + #semesterId"
     )
-    @Transactional
+    @Transactional(readOnly = true)
     fun getActiveProjectsBySemester(semesterId: UUID): List<ProjectResponse> {
         return projectRepository.findActiveProjectsBySemester(semesterId)
             .map { it.toProjectResponse() }
@@ -396,7 +435,7 @@ class ProjectService(
         value = [CacheConfig.PROJECTS_LIST],
         key = "'projects_active_batch_' + #batchId"
     )
-    @Transactional
+    @Transactional(readOnly = true)
     fun getActiveProjectsByBatch(batchId: UUID): List<ProjectResponse> {
         return projectRepository.findActiveProjectsByBatch(batchId)
             .map { it.toProjectResponse() }
@@ -478,6 +517,8 @@ class ProjectService(
                     )
                 } ?: emptyList(),
                 reviewCount = (data["review_count"] as? Number)?.toInt() ?: 0,
+                references = emptyList(),
+                uploadedFiles = emptyList(),
                 createdAt = data["created_at"] as Timestamp,
                 updatedAt = data["updated_at"] as Timestamp
             )
