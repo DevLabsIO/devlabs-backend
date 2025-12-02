@@ -73,7 +73,7 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
         @Param("offset") offset: Int,
         @Param("limit") limit: Int
     ): List<UUID>
-    
+
     @Query(value = """
         SELECT COUNT(*)
         FROM batch b
@@ -230,14 +230,9 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
     fun countSearchStudentsByBatchId(@Param("batchId") batchId: UUID, @Param("query") query: String): Long
     
     override fun findAll(pageable: Pageable): Page<Batch>
-    
-    @Query("SELECT b FROM Batch b WHERE LOWER(b.name) LIKE LOWER(CONCAT('%', :query, '%')) OR CAST(b.joinYear AS string) LIKE CONCAT('%', :query, '%')")
-    fun searchByNameOrYearContainingIgnoreCase(@Param("query") query: String, pageable: Pageable): Page<Batch>
-    
+
     @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Batch b WHERE :semester MEMBER OF b.semester")
     fun existsBySemester(@Param("semester") semester: Semester): Boolean
-    
-    fun findByStudentsContaining(student: User): List<Batch>
 
     @Query(value = """
         SELECT b.id, b.name, b.join_year, b.section, b.is_active, b.department_id,
@@ -286,17 +281,35 @@ interface BatchRepository : JpaRepository<Batch, UUID> {
         AND ci.instructor_id = CAST(:instructorId AS VARCHAR)
     """, nativeQuery = true)
     fun findActiveBatchesByInstructorIdNative(@Param("instructorId") instructorId: String): List<Map<String, Any>>
-    
-    fun findByIsActiveTrue(): List<Batch>
-    
-    @Query("SELECT u FROM Batch b JOIN b.students u WHERE b.id = :batchId")
-    fun findStudentsByBatchId(@Param("batchId") batchId: UUID, pageable: Pageable): Page<User>
-    
-    @Query("SELECT u FROM Batch b JOIN b.students u WHERE b.id = :batchId AND (LOWER(u.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')))")
-    fun searchStudentsByBatchId(@Param("batchId") batchId: UUID, @Param("query") query: String, pageable: Pageable): Page<User>
-    
-    @Query("SELECT b FROM Batch b JOIN b.students s WHERE b.isActive = true AND s.id = :studentId")
-    fun findByIsActiveTrueAndStudentsId(@Param("studentId") studentId: String): List<Batch>
-    
+
+    @Query(value = """
+        SELECT u.id, u.name, u.email, u.profile_id, u.image,
+               CASE u.role
+                   WHEN 0 THEN 'STUDENT'
+                   WHEN 1 THEN 'ADMIN'
+                   WHEN 2 THEN 'FACULTY'
+                   WHEN 3 THEN 'MANAGER'
+               END as role,
+               u.phone_number, u.is_active, u.created_at
+        FROM "user" u
+        WHERE u.role = 0
+        AND u.id NOT IN (
+            SELECT bs.student_id
+            FROM batch_student bs
+            WHERE bs.batch_id = :batchId
+        )
+        AND (
+            :query = ''
+            OR LOWER(u.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(u.profile_id) LIKE LOWER(CONCAT('%', :query, '%'))
+        )
+        ORDER BY u.name
+    """, nativeQuery = true)
+    fun findAvailableStudentsForBatch(
+        @Param("batchId") batchId: UUID,
+        @Param("query") query: String
+    ): List<Map<String, Any>>
+
     fun countByIsActive(isActive: Boolean): Long
 }

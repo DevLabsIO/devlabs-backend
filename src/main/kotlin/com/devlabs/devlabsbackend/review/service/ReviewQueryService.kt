@@ -53,9 +53,6 @@ class ReviewQueryService(
         sortBy: String = "createdAt",
         sortOrder: String = "desc"
     ): PaginatedResponse<ReviewResponse> {
-        val userRole = SecurityUtils.getCurrentUserRoleFromJwt() 
-            ?: throw NotFoundException("User role not found in JWT")
-
         val user = userRepository.findById(userId).orElseThrow {
             NotFoundException("User with id $userId not found")
         }
@@ -100,6 +97,9 @@ class ReviewQueryService(
         val projectsData = reviewRepository.findProjectsByReviewIds(reviewIds)
         val projectsByReviewId = projectsData.groupBy { it["review_id"].toString() }
         
+        val batchesData = reviewRepository.findBatchesByReviewIds(reviewIds)
+        val batchesByReviewId = batchesData.groupBy { it["review_id"].toString() }
+        
         val rubricsIds = reviewData.mapNotNull { it["rubrics_id"]?.toString() }.distinct()
             .map { UUID.fromString(it) }
         val criteriaData = if (rubricsIds.isNotEmpty()) {
@@ -119,6 +119,7 @@ class ReviewQueryService(
                 data, 
                 coursesByReviewId, 
                 projectsByReviewId,
+                batchesByReviewId,
                 criteriaByRubricsId, 
                 publishMap, 
                 user.role
@@ -138,7 +139,6 @@ class ReviewQueryService(
         )
     }
 
-    
     @Transactional(readOnly = true)
     @Cacheable(value = [CacheConfig.REVIEW_DETAIL_CACHE], key = "'review_detail_' + #reviewId + '_' + (#userId ?: 'anonymous')")
     fun getReviewById(reviewId: UUID, userId: String? = null): ReviewResponse {
@@ -152,27 +152,44 @@ class ReviewQueryService(
         
         val projectsData = reviewRepository.findProjectsByReviewId(reviewId)
         
+        val batchesData = reviewRepository.findBatchesByReviewId(reviewId)
+        
         val rubricsIdStr = reviewData["rubrics_id"]?.toString()
             ?: throw NotFoundException("Review does not have rubrics")
         val rubricsId = UUID.fromString(rubricsIdStr)
         val criteriaData = reviewRepository.findCriteriaByRubricsIds(listOf(rubricsId))
 
         val user = userId?.let { userRepository.findById(it).orElse(null) }
-        val userRole = user?.role ?: Role.ADMIN
+        val userRole = if (userId != null && user == null) {
+            throw NotFoundException("User with id $userId not found")
+        } else {
+            user?.role ?: Role.ADMIN
+        }
         
         val isPublished = if (userId != null && user != null) {
             reviewPublicationHelper.isReviewPublishedForUser(reviewId, userId, userRole.name)
         } else {
             reviewPublicationHelper.isReviewFullyPublished(reviewId)
         }
+        
+        // Fetch actual database mappings (not derived)
+        val directCourseIds = reviewRepository.findDirectCourseIdsByReviewId(reviewId)
+        val directBatchIds = reviewRepository.findDirectBatchIdsByReviewId(reviewId)
+        val directProjectIds = reviewRepository.findDirectProjectIdsByReviewId(reviewId)
+        val directSemesterIds = reviewRepository.findDirectSemesterIdsByReviewId(reviewId)
  
         return mapSingleReviewDataToResponse(
             reviewData,
             coursesData,
             projectsData,
+            batchesData,
             criteriaData,
             userRole,
-            isPublished
+            isPublished,
+            directSemesterIds,
+            directBatchIds,
+            directCourseIds,
+            directProjectIds
         )
     }
 
@@ -194,6 +211,7 @@ class ReviewQueryService(
         
         val coursesData = reviewRepository.findCoursesByReviewId(reviewId)
         val projectsData = reviewRepository.findProjectsByReviewId(reviewId)
+        val batchesData = reviewRepository.findBatchesByReviewId(reviewId)
         
         val rubricsIdStr = reviewData["rubrics_id"]?.toString()
             ?: throw NotFoundException("Review does not have rubrics")
@@ -206,6 +224,7 @@ class ReviewQueryService(
             reviewData,
             coursesData,
             projectsData,
+            batchesData,
             criteriaData,
             user.role,
             isPublishedForUser
@@ -386,6 +405,12 @@ class ReviewQueryService(
         val coursesData = reviewRepository.findCoursesByReviewIds(reviewIds)
         val coursesByReviewId = coursesData.groupBy { it["review_id"].toString() }
         
+        val projectsData = reviewRepository.findProjectsByReviewIds(reviewIds)
+        val projectsByReviewId = projectsData.groupBy { it["review_id"].toString() }
+        
+        val batchesData = reviewRepository.findBatchesByReviewIds(reviewIds)
+        val batchesByReviewId = batchesData.groupBy { it["review_id"].toString() }
+        
         val rubricsIds = reviewData.mapNotNull { it["rubrics_id"]?.toString() }.distinct()
             .map { UUID.fromString(it) }
         val criteriaData = if (rubricsIds.isNotEmpty()) {
@@ -409,9 +434,11 @@ class ReviewQueryService(
         }
         
         val allReviews = reviewData.map { data ->
-            val review = mapListDataToResponse(
+            val review = mapBatchedDataToResponse(
                 data, 
                 coursesByReviewId, 
+                projectsByReviewId,
+                batchesByReviewId,
                 criteriaByRubricsId, 
                 publishMap, 
                 user?.role ?: Role.ADMIN
@@ -553,17 +580,13 @@ class ReviewQueryService(
     private fun isProjectAssociatedWithReview(reviewId: UUID, projectId: UUID): Boolean {
         return reviewRepository.isProjectAssociatedWithReview(reviewId, projectId)
     }
-
-    private fun createSort(sortBy: String, sortOrder: String): Sort {
-        val direction = if (sortOrder.lowercase() == "desc") Sort.Direction.DESC else Sort.Direction.ASC
-        return Sort.by(direction, sortBy)
-    }
     
     @Suppress("UNCHECKED_CAST")
     private fun mapBatchedDataToResponse(
         data: Map<String, Any>,
         coursesByReviewId: Map<String, List<Map<String, Any>>>,
         projectsByReviewId: Map<String, List<Map<String, Any>>>,
+        batchesByReviewId: Map<String, List<Map<String, Any>>>,
         criteriaByRubricsId: Map<String, List<Map<String, Any>>>,
         publishMap: Map<String, Int>,
         userRole: Role
@@ -609,6 +632,13 @@ class ReviewQueryService(
                 )
             } ?: emptyList()
         
+        val sections = batchesByReviewId[reviewIdStr]?.map { b ->
+            SectionInfo(
+                id = UUID.fromString(b["id"].toString()),
+                name = b["name"].toString()
+            )
+        } ?: emptyList()
+        
         val criteria = criteriaByRubricsId[rubricsIdStr]?.map { cr ->
             CriteriaInfo(
                 id = UUID.fromString(cr["id"].toString()),
@@ -630,8 +660,8 @@ class ReviewQueryService(
         return ReviewResponse(
             id = reviewId,
             name = data["name"].toString(),
-            startDate = java.time.LocalDate.parse(data["start_date"].toString()),
-            endDate = java.time.LocalDate.parse(data["end_date"].toString()),
+            startDate = LocalDate.parse(data["start_date"].toString()),
+            endDate = LocalDate.parse(data["end_date"].toString()),
             publishedAt = null,
             createdBy = if (createdById != null) {
                 CreatedByInfo(
@@ -645,7 +675,7 @@ class ReviewQueryService(
             },
             courses = courses,
             projects = projects,
-            sections = emptyList(),
+            sections = sections,
             rubricsInfo = RubricInfo(
                 id = rubricsId,
                 name = data["rubrics_name"].toString(),
@@ -703,8 +733,8 @@ class ReviewQueryService(
         return ReviewResponse(
             id = reviewId,
             name = data["name"].toString(),
-            startDate = java.time.LocalDate.parse(data["start_date"].toString()),
-            endDate = java.time.LocalDate.parse(data["end_date"].toString()),
+            startDate = LocalDate.parse(data["start_date"].toString()),
+            endDate = LocalDate.parse(data["end_date"].toString()),
             publishedAt = null,
             createdBy = if (createdById != null) {
                 CreatedByInfo(
@@ -733,9 +763,14 @@ class ReviewQueryService(
         data: Map<String, Any>,
         coursesData: List<Map<String, Any>>,
         projectsData: List<Map<String, Any>>,
+        batchesData: List<Map<String, Any>>,
         criteriaData: List<Map<String, Any>>,
         @Suppress("UNUSED_PARAMETER") userRole: Role,
-        isPublished: Boolean
+        isPublished: Boolean,
+        directSemesterIds: List<UUID>? = null,
+        directBatchIds: List<UUID>? = null,
+        directCourseIds: List<UUID>? = null,
+        directProjectIds: List<UUID>? = null
     ): ReviewResponse {
         val reviewId = UUID.fromString(data["id"].toString())
         val rubricsId = UUID.fromString(data["rubrics_id"].toString())
@@ -776,6 +811,13 @@ class ReviewQueryService(
                 )
             }
         
+        val sections = batchesData.map { b ->
+            SectionInfo(
+                id = UUID.fromString(b["id"].toString()),
+                name = b["name"].toString()
+            )
+        }
+        
         val criteria = criteriaData.map { cr ->
             CriteriaInfo(
                 id = UUID.fromString(cr["id"].toString()),
@@ -791,8 +833,8 @@ class ReviewQueryService(
         return ReviewResponse(
             id = reviewId,
             name = data["name"].toString(),
-            startDate = java.time.LocalDate.parse(data["start_date"].toString()),
-            endDate = java.time.LocalDate.parse(data["end_date"].toString()),
+            startDate = LocalDate.parse(data["start_date"].toString()),
+            endDate = LocalDate.parse(data["end_date"].toString()),
             publishedAt = null,
             createdBy = if (createdById != null) {
                 CreatedByInfo(
@@ -806,13 +848,17 @@ class ReviewQueryService(
             },
             courses = courses,
             projects = projects,
-            sections = emptyList(),
+            sections = sections,
             rubricsInfo = RubricInfo(
                 id = rubricsId,
                 name = data["rubrics_name"].toString(),
                 criteria = criteria
             ),
-            isPublished = isPublished
+            isPublished = isPublished,
+            semesterIds = directSemesterIds,
+            batchIds = directBatchIds,
+            courseIds = directCourseIds,
+            projectIds = directProjectIds
         )
     }
     
@@ -1057,7 +1103,7 @@ class ReviewQueryService(
                 if (participantScores.isNotEmpty()) {
                     totalScore = participantScores.sumOf { (it["score"] as Number).toDouble() }
                     maxScore = participantScores.sumOf { (it["criterion_max_score"] as Number).toDouble() }
-                    percentage = if (maxScore!! > 0.0) (totalScore!! / maxScore) * 100.0 else 0.0
+                    percentage = if (maxScore > 0.0) (totalScore / maxScore) * 100.0 else 0.0
                     
                     participantScores.forEach { scoreData ->
                         val criterionId = UUID.fromString(scoreData["criterion_id"].toString())

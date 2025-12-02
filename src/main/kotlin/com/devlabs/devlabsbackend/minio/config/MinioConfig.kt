@@ -29,7 +29,7 @@ class MinioConfig {
     }
 
     @Bean
-    fun minioBucketName(): String {
+    fun minioBucketNameBean(): String {
         return minioBucketName
     }
 }

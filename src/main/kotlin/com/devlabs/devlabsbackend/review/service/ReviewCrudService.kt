@@ -76,9 +76,7 @@ class ReviewCrudService(
         if (!request.batchIds.isNullOrEmpty()) {
             reviewRelationshipService.addBatchesToReview(savedReview, request.batchIds, user)
         }
-
-        val finalReview = reviewRepository.save(savedReview)
-        return finalReview.toReviewResponse()
+        return savedReview.toReviewResponse()
     }
 
     @Transactional
@@ -89,7 +87,7 @@ class ReviewCrudService(
         CacheEvict(value = [CacheConfig.REVIEWS_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.PROJECT_REVIEWS_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.INDIVIDUAL_SCORES_CACHE], allEntries = true),
-        CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
+        CacheEvict(value = [CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT, CacheConfig.DASHBOARD_ADMIN], allEntries = true)
     ])
     fun updateReview(reviewId: UUID, request: UpdateReviewRequest): ReviewResponse {
         val user = userRepository.findById(request.userId).orElseThrow {

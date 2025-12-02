@@ -16,7 +16,7 @@ import java.util.zip.ZipOutputStream
 @Service
 class MinioService(
     private val minioClient: MinioClient,
-    @Qualifier("minioBucketName") private val bucketName: String
+    @Qualifier("minioBucketNameBean") private val bucketName: String
 ) {
     private val allowedFileTypes = listOf(
         "image/jpeg", "image/png", "image/gif", "image/webp",
@@ -156,31 +156,41 @@ class MinioService(
         )
 
         val tempZipFile = java.io.File.createTempFile("minio-download", ".zip")
-        val zipOutputStream = ZipOutputStream(FileOutputStream(tempZipFile))
-
+        
         try {
-            objects.forEach { item ->
-                val result = item.get()
-                val objectStream = minioClient.getObject(
-                    GetObjectArgs.builder()
-                        .bucket(bucketName)
-                        .`object`(result.objectName())
-                        .build()
-                )
-
-                val fileName = result.objectName().substringAfterLast('/')
-                val zipEntry = ZipEntry(fileName)
-                zipOutputStream.putNextEntry(zipEntry)
-                
-                objectStream.copyTo(zipOutputStream)
-                objectStream.close()
-                zipOutputStream.closeEntry()
+            ZipOutputStream(FileOutputStream(tempZipFile)).use { zipOutputStream ->
+                objects.forEach { item ->
+                    val result = item.get()
+                    minioClient.getObject(
+                        GetObjectArgs.builder()
+                            .bucket(bucketName)
+                            .`object`(result.objectName())
+                            .build()
+                    ).use { objectStream ->
+                        val fileName = result.objectName().substringAfterLast('/')
+                        val zipEntry = ZipEntry(fileName)
+                        zipOutputStream.putNextEntry(zipEntry)
+                        objectStream.copyTo(zipOutputStream)
+                        zipOutputStream.closeEntry()
+                    }
+                }
             }
-        } finally {
-            zipOutputStream.close()
+        } catch (e: Exception) {
+            tempZipFile.delete()
+            throw e
         }
 
-        return FileInputStream(tempZipFile)
+        return TempFileInputStream(tempZipFile)
+    }
+
+    private class TempFileInputStream(private val file: java.io.File) : FileInputStream(file) {
+        override fun close() {
+            try {
+                super.close()
+            } finally {
+                file.delete()
+            }
+        }
     }
 
     fun deleteDirectory(directoryPath: String): Int {

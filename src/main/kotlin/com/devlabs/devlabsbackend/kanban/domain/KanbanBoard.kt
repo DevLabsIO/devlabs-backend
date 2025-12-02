@@ -26,7 +26,6 @@ class KanbanBoard(
     
     @OneToMany(mappedBy = "board", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
     var columns: MutableSet<KanbanColumn> = mutableSetOf(),
-    
     val createdAt: Timestamp = Timestamp.from(Instant.now()),
     var updatedAt: Timestamp = Timestamp.from(Instant.now())
 ) {

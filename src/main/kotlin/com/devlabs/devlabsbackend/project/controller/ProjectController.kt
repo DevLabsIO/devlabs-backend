@@ -178,7 +178,10 @@ class ProjectController(
         @RequestBody request: UserIdRequest
     ): ResponseEntity<Any> {
         return try {
-            projectService.deleteProject(projectId, request.userId)
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+            projectService.deleteProject(projectId, userId)
             ResponseEntity.ok(mapOf("success" to true, "message" to "Project deleted successfully"))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
@@ -390,6 +393,8 @@ class ProjectController(
     fun getProjectReviews(@PathVariable projectId: UUID): ResponseEntity<Any> {
         return try {
             val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
             val response = reviewQueryService.checkProjectReviewAssignment(projectId, userId)
             ResponseEntity.ok(response)
         } catch (e: NotFoundException) {

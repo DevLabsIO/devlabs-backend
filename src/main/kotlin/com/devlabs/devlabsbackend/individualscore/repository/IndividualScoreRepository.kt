@@ -15,38 +15,7 @@ import java.util.UUID
 
 @RepositoryRestResource(path = "individualScore")
 interface IndividualScoreRepository : JpaRepository<IndividualScore, UUID> {
-    
-    fun findByParticipantAndCriterionAndReviewAndProject(
-        participant: User,
-        criterion: Criterion,
-        review: Review,
-        project: Project
-    ): IndividualScore?
-    
-    @Query("""
-        SELECT s FROM IndividualScore s 
-        LEFT JOIN FETCH s.criterion
-        WHERE s.participant = :participant 
-          AND s.review = :review 
-          AND s.project = :project
-    """)
-    fun findByParticipantAndReviewAndProject(
-        @Param("participant") participant: User,
-        @Param("review") review: Review,
-        @Param("project") project: Project
-    ): List<IndividualScore>
-    
-    @Query("""
-        SELECT s FROM IndividualScore s 
-        LEFT JOIN FETCH s.participant
-        LEFT JOIN FETCH s.criterion
-        WHERE s.review = :review 
-          AND s.project = :project
-    """)
-    fun findByReviewAndProject(
-        @Param("review") review: Review,
-        @Param("project") project: Project
-    ): List<IndividualScore>
+
     
     @Query(value = """
         SELECT 
@@ -101,6 +70,7 @@ interface IndividualScoreRepository : JpaRepository<IndividualScore, UUID> {
         SELECT s FROM IndividualScore s 
         LEFT JOIN FETCH s.participant
         LEFT JOIN FETCH s.criterion
+        LEFT JOIN FETCH s.course
         WHERE s.review = :review 
           AND s.project = :project 
           AND s.course = :course
@@ -110,22 +80,7 @@ interface IndividualScoreRepository : JpaRepository<IndividualScore, UUID> {
         @Param("project") project: Project,
         @Param("course") course: Course
     ): List<IndividualScore>
-    
-    @Query("""
-        SELECT s FROM IndividualScore s 
-        LEFT JOIN FETCH s.criterion
-        WHERE s.participant = :participant 
-          AND s.review = :review 
-          AND s.project = :project 
-          AND s.course = :course
-    """)
-    fun findByParticipantAndReviewAndProjectAndCourse(
-        @Param("participant") participant: User,
-        @Param("review") review: Review,
-        @Param("project") project: Project,
-        @Param("course") course: Course
-    ): List<IndividualScore>
-    
+
     fun findByParticipantAndCriterionAndReviewAndProjectAndCourse(
         participant: User,
         criterion: Criterion,
@@ -139,24 +94,7 @@ interface IndividualScoreRepository : JpaRepository<IndividualScore, UUID> {
         @Param("student") student: User,
         @Param("course") course: Course
     ): List<IndividualScore>
-    
-    @Query("SELECT COALESCE(AVG(s.score / s.criterion.maxScore * 100), 0.0) FROM IndividualScore s WHERE s.participant = :student AND :course MEMBER OF s.project.courses")
-    fun getAverageScorePercentageForStudentAndCourse(
-        @Param("student") student: User,
-        @Param("course") course: Course
-    ): Double
-    
-    @Query("SELECT COUNT(DISTINCT s.review) FROM IndividualScore s WHERE s.participant = :student AND :course MEMBER OF s.project.courses")
-    fun countDistinctReviewsForStudentAndCourse(
-        @Param("student") student: User,
-        @Param("course") course: Course
-    ): Int
-    
-    @Query("SELECT DISTINCT is.participant FROM IndividualScore is WHERE is.review = :review AND is.project = :project")
-    fun findDistinctParticipantsByReviewAndProject(
-        @Param("review") review: Review,
-        @Param("project") project: Project
-    ): List<User>
+
     
     @Query("SELECT DISTINCT is.participant FROM IndividualScore is WHERE is.review = :review AND is.project = :project AND is.course = :course")
     fun findDistinctParticipantsByReviewAndProjectAndCourse(
@@ -164,51 +102,20 @@ interface IndividualScoreRepository : JpaRepository<IndividualScore, UUID> {
         @Param("project") project: Project,
         @Param("course") course: Course
     ): List<User>
-    
-    @Transactional
-    fun deleteByParticipantAndReviewAndProject(
-        participant: User,
-        review: Review,
-        project: Project
-    )
-    
-    @Transactional
-    fun deleteByReviewAndProject(
-        review: Review,
-        project: Project
-    )
-    
-    @Transactional
-    fun deleteByParticipantAndReviewAndProjectAndCourse(
-        participant: User,
-        review: Review,
-        project: Project,
-        course: Course
-    )
+
     
     @Query("SELECT DISTINCT s.review FROM IndividualScore s WHERE s.participant = :participant AND s.course = :course ORDER BY s.review.startDate")
     fun findDistinctReviewsByParticipantAndCourse(
         @Param("participant") participant: User,
         @Param("course") course: Course
     ): List<Review>
-    
-    @Query("""
-        SELECT s FROM IndividualScore s 
-        LEFT JOIN FETCH s.criterion
-        WHERE s.participant = :participant 
-          AND s.review = :review 
-          AND s.course = :course
-    """)
-    fun findByParticipantAndReviewAndCourse(
-        @Param("participant") participant: User,
-        @Param("review") review: Review,
-        @Param("course") course: Course
-    ): List<IndividualScore>
 
     @Query("""
         SELECT s FROM IndividualScore s 
         LEFT JOIN FETCH s.criterion
         LEFT JOIN FETCH s.review
+        LEFT JOIN FETCH s.course
+        LEFT JOIN FETCH s.project
         WHERE s.participant = :participant 
           AND s.review IN :reviews
           AND s.course = :course

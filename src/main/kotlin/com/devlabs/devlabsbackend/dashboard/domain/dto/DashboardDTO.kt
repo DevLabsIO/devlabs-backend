@@ -81,23 +81,15 @@ data class PublishedReviewSummaryResponse(
 )
 
 fun User.toUserSummary() = UserSummaryResponse(
-    id = id!!,
+    id = id ?: throw IllegalStateException("User ID cannot be null"),
     name = name,
     email = email,
     role = role.name,  // ✅ Convert enum to String
     createdAt = createdAt.toString()
 )
 
-fun Review.toReviewSummary() = ReviewSummaryResponse(
-    id = id!!,
-    name = name,
-    startDate = startDate,
-    endDate = endDate,
-    courseName = courses.firstOrNull()?.name ?: "Multiple Courses"
-)
-
 fun ReviewCoursePublication.toPublishedReviewSummary() = PublishedReviewSummaryResponse(
-    reviewId = review.id!!,
+    reviewId = review.id ?: throw IllegalStateException("Review ID cannot be null"),
     reviewName = review.name,
     publishedAt = publishedAt.toString()
 )

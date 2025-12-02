@@ -28,28 +28,6 @@ class UserService(
 ) {
 
     @Transactional(readOnly = true)
-    fun getAllUsersByRole(
-        role: Role,
-        page: Int,
-        size: Int,
-        sortBy: String = "name",
-        sortOrder: String = "asc"
-    ): PaginatedResponse<UserResponse> {
-        val pageable = PageRequest.of(page, size)
-        val userPage = userRepository.findByRolePaged(role.ordinal, sortBy, sortOrder, pageable)
-
-        return PaginatedResponse(
-            data = userPage.content.map { mapToUserResponse(it) },
-            pagination = PaginationInfo(
-                current_page = page + 1,
-                per_page = size,
-                total_pages = userPage.totalPages,
-                total_count = userPage.totalElements.toInt()
-            )
-        )
-    }
-
-    @Transactional(readOnly = true)
     fun getAllUsersByRoles(
         roles: List<Role>,
         isActive: Boolean?,

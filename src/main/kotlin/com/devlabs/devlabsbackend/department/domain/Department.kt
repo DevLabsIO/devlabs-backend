@@ -18,9 +18,8 @@ class Department (
     @GeneratedValue(strategy = GenerationType.AUTO)
     val id: UUID? = null,
     var name: String,
-    @OneToMany(mappedBy = "department", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "department", cascade = [CascadeType.PERSIST, CascadeType.MERGE], fetch = FetchType.LAZY, orphanRemoval = false)
     val batches: MutableSet<Batch> = mutableSetOf(),
-    
     val createdAt: java.sql.Timestamp = java.sql.Timestamp.from(java.time.Instant.now()),
     var updatedAt: java.sql.Timestamp = java.sql.Timestamp.from(java.time.Instant.now())
 )

@@ -54,11 +54,11 @@ class BatchController(
         @PathVariable batchId: UUID,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "createdAt") sort_by: String,
-        @RequestParam(defaultValue = "desc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sortBy: String,
+        @RequestParam(defaultValue = "desc") sortOrder: String
     ): ResponseEntity<Any> {
         return try {
-            val students = batchService.getBatchStudents(batchId, page, size, sort_by, sort_order)
+            val students = batchService.getBatchStudents(batchId, page, size, sortBy, sortOrder)
             ResponseEntity.ok(students)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -75,11 +75,11 @@ class BatchController(
         @RequestParam query: String,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "createdAt") sort_by: String,
-        @RequestParam(defaultValue = "desc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sortBy: String,
+        @RequestParam(defaultValue = "desc") sortOrder: String
     ): ResponseEntity<Any> {
         return try {
-            val students = batchService.searchBatchStudents(batchId, query, page, size, sort_by, sort_order)
+            val students = batchService.searchBatchStudents(batchId, query, page, size, sortBy, sortOrder)
             ResponseEntity.ok(students)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -122,11 +122,11 @@ class BatchController(
         @RequestParam(required = false) isActive: Boolean?,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "createdAt") sort_by: String,
-        @RequestParam(defaultValue = "desc") sort_order: String?
+        @RequestParam(defaultValue = "createdAt") sortBy: String,
+        @RequestParam(defaultValue = "desc") sortOrder: String?
     ): ResponseEntity<Any> {
         return try {
-            val batches = batchService.getAllBatches(isActive, page, size, sort_by, sort_order)
+            val batches = batchService.getAllBatches(isActive, page, size, sortBy, sortOrder)
             ResponseEntity.ok(batches)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -140,11 +140,11 @@ class BatchController(
         @RequestParam(required = false) isActive: Boolean?,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(required = false) sort_by: String?,
-        @RequestParam(required = false) sort_order: String?
+        @RequestParam(required = false) sortBy: String?,
+        @RequestParam(required = false) sortOrder: String?
     ): ResponseEntity<PaginatedResponse<BatchResponse>> {
         return try {
-            val batches = batchService.searchBatches(query, isActive, page, size, sort_by, sort_order)
+            val batches = batchService.searchBatches(query, isActive, page, size, sortBy, sortOrder)
             ResponseEntity.ok(batches)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -38,8 +38,8 @@ class BatchService(
     @Transactional
     @Caching(
         evict = [
-            CacheEvict(value = ["batch-detail"], allEntries = true),
-            CacheEvict(value = ["batches-list"], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCHES_LIST_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.BATCH_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.BATCHES_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DEPARTMENTS_CACHE], allEntries = true),
@@ -52,8 +52,6 @@ class BatchService(
                 NotFoundException("Department with id $departmentId not found")
             }
         }
-
-        // Generate batch name following evalify naming convention: {joinYear}{DepartmentName}{Section}
         val batchName = if (department != null) {
             "${request.joinYear.value}${department.name}${request.section}"
         } else {
@@ -107,7 +105,6 @@ class BatchService(
             batch.department = department
         }
 
-        // Regenerate batch name if any of the relevant fields changed
         if (request.joinYear != null || request.section != null || request.departmentId != null) {
             val department = batch.department
             if (department != null) {
@@ -124,8 +121,8 @@ class BatchService(
     @Transactional
     @Caching(
         evict = [
-            CacheEvict(value = ["batch-detail"], allEntries = true),
-            CacheEvict(value = ["batches-list"], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCHES_LIST_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.BATCH_DETAIL_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.BATCHES_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DEPARTMENTS_CACHE], allEntries = true),
@@ -140,7 +137,7 @@ class BatchService(
     }
 
     @Cacheable(
-        value = ["batches-list"],
+        value = [CacheConfig.BATCHES_LIST_CACHE],
         key = "'batches-' + #page + '-' + #size + '-' + #sortBy + '-' + #sortOrder + '-' + #isActive",
         condition = "#page == 0 && #size == 10 && #isActive == null"
     )
@@ -259,29 +256,7 @@ class BatchService(
             return batchesData.map { mapToBatchResponse(it) }
         }
     }
-
-    @Transactional(readOnly = true)
-    @Cacheable(value = [CacheConfig.BATCHES_CACHE], key = "'active_user_' + #userId")
-    fun getAllActiveBatchesForUser(userId: String): List<BatchResponse> {
-        val user = userRepository.findById(userId).orElseThrow {
-            NotFoundException("User with id $userId not found")
-        }
-        val batchesData = when (user.role) {
-            Role.STUDENT -> batchRepository.findActiveBatchesByStudentIdNative(userId)
-            Role.FACULTY -> batchRepository.findActiveBatchesByInstructorIdNative(userId)
-            else -> emptyList()
-        }
-        return batchesData.map { mapToBatchResponse(it) }
-    }
-
-    private fun createSort(sortBy: String?, sortOrder: String?): Sort {
-        return if (sortBy != null) {
-            val direction = if (sortOrder?.uppercase() == "DESC") Sort.Direction.DESC else Sort.Direction.ASC
-            Sort.by(direction, sortBy)
-        } else {
-            Sort.by(Sort.Direction.ASC, "name")
-        }
-    }
+    
 
     @Cacheable(
         value = [CacheConfig.BATCH_STUDENTS_CACHE],
@@ -351,8 +326,8 @@ class BatchService(
     @Transactional
     @Caching(
         evict = [
-            CacheEvict(value = ["batch-detail"], allEntries = true),
-            CacheEvict(value = ["batches-list"], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCHES_LIST_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.COURSE_STUDENTS_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
@@ -360,7 +335,7 @@ class BatchService(
     )
     fun addStudentsToBatch(batchId: UUID, studentId: List<String>) {
         val batch = batchRepository.findById(batchId).orElseThrow {
-            NotFoundException("Could not find course with id $batchId")
+            NotFoundException("Could not find batch with id $batchId")
         }
         val users = userRepository.findAllById(studentId)
         batch.students.addAll(users)
@@ -370,8 +345,8 @@ class BatchService(
     @Transactional
     @Caching(
         evict = [
-            CacheEvict(value = ["batch-detail"], allEntries = true),
-            CacheEvict(value = ["batches-list"], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCH_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.BATCHES_LIST_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.BATCH_STUDENTS_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.COURSE_STUDENTS_CACHE, CacheConfig.COURSES_USER_CACHE], allEntries = true),
             CacheEvict(value = [CacheConfig.DASHBOARD_STUDENT], allEntries = true)
@@ -379,7 +354,7 @@ class BatchService(
     )
     fun removeStudentsFromBatch(batchId: UUID, studentId: List<String>) {
         val batch = batchRepository.findById(batchId).orElseThrow {
-            NotFoundException("Could not find course with id $batchId")
+            NotFoundException("Could not find batch with id $batchId")
         }
         val users = userRepository.findAllById(studentId)
         batch.students.removeAll(users)
@@ -392,26 +367,8 @@ class BatchService(
             NotFoundException("Batch with id $batchId not found")
         }
 
-        val studentsInBatch = batchRepository.findStudentsByBatchIdNative(batchId, "name", "ASC", 0, Int.MAX_VALUE)
-        val studentIdsInBatch = studentsInBatch.map { it["id"].toString() }.toSet()
-
-        val allStudents = userRepository.findByRole(0)
-        
-        val availableStudents = allStudents
-            .filter { !studentIdsInBatch.contains(it["id"].toString()) }
-            .filter { 
-                if (query.isBlank()) true 
-                else {
-                    val name = it["name"]?.toString()?.lowercase() ?: ""
-                    val email = it["email"]?.toString()?.lowercase() ?: ""
-                    val profileId = it["profile_id"]?.toString()?.lowercase() ?: ""
-                    val searchQuery = query.lowercase()
-                    name.contains(searchQuery) || email.contains(searchQuery) || profileId.contains(searchQuery)
-                }
-            }
+        return batchRepository.findAvailableStudentsForBatch(batchId, query)
             .map { mapToUserResponse(it) }
-
-        return availableStudents
     }
 
     private fun mapToBatchResponse(data: Map<String, Any>): BatchResponse {
@@ -455,7 +412,7 @@ fun Batch.toBatchResponse(): BatchResponse {
         isActive = this.isActive,
         department = this.department?.let {
             DepartmentResponse(
-                id = it.id,
+                id = it.id!!,
                 name = it.name,
             )
         },

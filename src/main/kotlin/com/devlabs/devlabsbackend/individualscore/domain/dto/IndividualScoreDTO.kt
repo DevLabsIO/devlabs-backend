@@ -22,7 +22,6 @@ data class CriterionScore(
 )
 
 data class SubmitCourseScoreRequest(
-    val userId: String,
     val reviewId: UUID,
     val projectId: UUID,
     val courseId: UUID,

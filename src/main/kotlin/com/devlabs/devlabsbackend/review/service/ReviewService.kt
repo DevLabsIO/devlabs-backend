@@ -3,7 +3,6 @@ package com.devlabs.devlabsbackend.review.service
 import com.devlabs.devlabsbackend.core.pagination.PaginatedResponse
 import com.devlabs.devlabsbackend.review.domain.Review
 import com.devlabs.devlabsbackend.review.domain.dto.*
-import com.devlabs.devlabsbackend.user.domain.Role
 import org.springframework.stereotype.Service
 import java.util.*
 
@@ -145,7 +144,12 @@ fun Review.toReviewResponse(): ReviewResponse {
                 }
             )
         },
-        sections = emptyList(),
+        sections = this.batches.map { batch ->
+            SectionInfo(
+                id = batch.id!!,
+                name = batch.name
+            )
+        },
         rubricsInfo = this.rubrics?.let {
             RubricInfo(
                 id = it.id!!,

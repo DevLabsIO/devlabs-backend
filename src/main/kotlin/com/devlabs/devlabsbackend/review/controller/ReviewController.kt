@@ -84,11 +84,12 @@ class ReviewController(
 
     @DeleteMapping("/{reviewId}")
     fun deleteReview(
-        @PathVariable reviewId: UUID,
-        @RequestBody request: Map<String, String>
+        @PathVariable reviewId: UUID
     ): ResponseEntity<Any> {
         return try {
-            val userId = request["userId"] ?: throw IllegalArgumentException("userId is required")
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
             val result = reviewService.deleteReview(reviewId, userId)
             ResponseEntity.ok(mapOf("success" to result))
         } catch (e: NotFoundException) {
@@ -187,11 +188,12 @@ class ReviewController(
 
     @GetMapping("/{reviewId}/publication")
     fun getPublicationStatus(
-        @PathVariable reviewId: UUID,
-        @RequestBody request: Map<String, String>
+        @PathVariable reviewId: UUID
     ): ResponseEntity<Any> {
         return try {
-            val userId = request["userId"] ?: throw IllegalArgumentException("userId is required")
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
             val user = userRepository.findById(userId).orElseThrow {
                 NotFoundException("User with id $userId not found")
             }
@@ -222,11 +224,12 @@ class ReviewController(
 
     @PostMapping("/{reviewId}/publish")
     fun publishReview(
-        @PathVariable reviewId: UUID,
-        @RequestBody request: Map<String, String>
+        @PathVariable reviewId: UUID
     ): ResponseEntity<Any> {
         return try {
-            val userId = request["userId"] ?: throw IllegalArgumentException("userId is required")
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
             val publicationStatus = reviewService.publishReview(reviewId, userId)
             ResponseEntity.ok(publicationStatus)
         } catch (e: NotFoundException) {
@@ -243,11 +246,12 @@ class ReviewController(
 
     @PostMapping("/{reviewId}/unpublish")
     fun unpublishReview(
-        @PathVariable reviewId: UUID,
-        @RequestBody request: Map<String, String>
+        @PathVariable reviewId: UUID
     ): ResponseEntity<Any> {
         return try {
-            val userId = request["userId"] ?: throw IllegalArgumentException("userId is required")
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
             val publicationStatus = reviewService.unpublishReview(reviewId, userId)
             ResponseEntity.ok(publicationStatus)
         } catch (e: NotFoundException) {
@@ -296,7 +300,10 @@ class ReviewController(
         @RequestBody request: ReviewResultsRequest
     ): ResponseEntity<Any> {
         return try {
-            val results = reviewService.getReviewResults(reviewId, request.projectId, request.userId)
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+            val results = reviewService.getReviewResults(reviewId, request.projectId, userId)
             ResponseEntity.ok(results)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)

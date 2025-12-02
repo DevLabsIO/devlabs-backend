@@ -19,11 +19,11 @@ class DepartmentController(
     fun getAllDepartments(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(defaultValue = "createdAt") sort_by: String,
-        @RequestParam(defaultValue = "desc") sort_order: String
+        @RequestParam(defaultValue = "createdAt") sortBy: String,
+        @RequestParam(defaultValue = "desc") sortOrder: String
     ): ResponseEntity<Any> {
         return try {
-            val departments = departmentService.getAllDepartments(page, size, sort_by, sort_order)
+            val departments = departmentService.getAllDepartments(page, size, sortBy, sortOrder)
             ResponseEntity.ok(departments)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -36,11 +36,11 @@ class DepartmentController(
         @RequestParam query: String,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(required = false) sort_by: String?,
-        @RequestParam(required = false) sort_order: String?
+        @RequestParam(required = false) sortBy: String?,
+        @RequestParam(required = false) sortOrder: String?
     ): ResponseEntity<PaginatedResponse<DepartmentResponse>> {
         return try {
-            val departments = departmentService.searchDepartments(query, page, size, sort_by, sort_order)
+            val departments = departmentService.searchDepartments(query, page, size, sortBy, sortOrder)
             ResponseEntity.ok(departments)
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -61,33 +61,78 @@ class DepartmentController(
                 .body(mapOf("message" to "Department not found: ${e.message}"))
         }
     }
-    
     @PostMapping
-    fun createDepartment(@RequestBody request: CreateDepartmentRequest): DepartmentResponse {
-        return departmentService.createDepartment(request)
+    fun createDepartment(@RequestBody request: CreateDepartmentRequest): ResponseEntity<Any> {
+        return try {
+            val department = departmentService.createDepartment(request)
+            ResponseEntity.status(HttpStatus.CREATED).body(department)
+        } catch (e: IllegalArgumentException) {
+            // or your custom ValidationException
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("message" to (e.message ?: "Invalid department data")))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("message" to "Failed to create department: ${e.message}"))
+        }
     }
 
     @PutMapping("/{departmentId}")
     fun updateDepartment(
         @PathVariable departmentId: UUID,
         @RequestBody request: UpdateDepartmentRequest
-    ): DepartmentResponse {
-        return departmentService.updateDepartment(departmentId, request)
+    ): ResponseEntity<Any> {
+        return try {
+            val department = departmentService.updateDepartment(departmentId, request)
+            ResponseEntity.ok(department)
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("message" to (e.message ?: "Invalid department update data")))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("message" to "Failed to update department: ${e.message}"))
+        }
     }
 
     @DeleteMapping("/{departmentId}")
     fun deleteDepartment(@PathVariable departmentId: UUID): ResponseEntity<Any> {
-        departmentService.deleteDepartment(departmentId)
-        return ResponseEntity.ok().build()
+        return try {
+            departmentService.deleteDepartment(departmentId)
+            ResponseEntity.ok().build()
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("message" to (e.message ?: "Invalid department id")))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("message" to "Failed to delete department: ${e.message}"))
+        }
     }
-    
+
     @GetMapping("/all")
-    fun getAllDepartmentsLegacy(): List<SimpleDepartmentResponse> {
-        return departmentService.getAllDepartmentsSimple()
+    fun getAllDepartmentsLegacy(): ResponseEntity<Any> {
+        return try {
+            val departments = departmentService.getAllDepartmentsSimple()
+            ResponseEntity.ok(departments)
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("message" to (e.message ?: "Invalid request")))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("message" to "Failed to fetch departments: ${e.message}"))
+        }
     }
 
     @GetMapping("/{departmentId}/batches")
-    fun getBatches(@PathVariable("departmentId") departmentId: UUID): List<DepartmentBatchResponse> {
-        return departmentService.getBatchesByDepartmentId(departmentId)
+    fun getBatches(@PathVariable("departmentId") departmentId: UUID): ResponseEntity<Any> {
+        return try {
+            val batches = departmentService.getBatchesByDepartmentId(departmentId)
+            ResponseEntity.ok(batches)
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("message" to (e.message ?: "Invalid department id")))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(mapOf("message" to "Failed to fetch batches: ${e.message}"))
+        }
     }
+
 }

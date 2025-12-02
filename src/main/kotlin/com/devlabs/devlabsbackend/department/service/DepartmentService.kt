@@ -146,7 +146,7 @@ class DepartmentService(
     }
     
     @Caching(evict = [
-        CacheEvict(value = ["department-detail", "departments-list"], allEntries = true),
+        CacheEvict(value = [CacheConfig.DEPARTMENT_DETAIL_CACHE, CacheConfig.DEPARTMENTS_LIST_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.DEPARTMENT_DETAIL_CACHE, CacheConfig.DEPARTMENTS_LIST_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.DEPARTMENTS_CACHE], allEntries = true),
         CacheEvict(value = [CacheConfig.BATCH_DETAIL_CACHE, CacheConfig.BATCHES_CACHE], allEntries = true),
@@ -161,9 +161,9 @@ class DepartmentService(
     
     @Transactional(readOnly = true)
     @Cacheable(value = [CacheConfig.DEPARTMENTS_CACHE], key = "'all_simple'")
-    fun getAllDepartmentsSimple(): List<SimpleDepartmentResponse> {
+    fun getAllDepartmentsSimple(): List<DepartmentResponse> {
         return departmentRepository.findAll().map { department ->
-            SimpleDepartmentResponse(
+            DepartmentResponse(
                 id = department.id!!,
                 name = department.name
             )
@@ -188,7 +188,7 @@ fun Department.toDepartmentResponse(): DepartmentResponse {
     }
     
     return DepartmentResponse(
-        id = this.id,
+        id = this.id!!,
         name = this.name,
         batches = batchResponses
     )

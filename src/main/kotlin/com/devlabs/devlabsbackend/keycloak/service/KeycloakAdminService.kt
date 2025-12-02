@@ -50,21 +50,24 @@ class KeycloakAdminService(private val config: KeycloakAdminConfig) {
     fun getAllUsers(): List<KeycloakUserDto> {
         return try {
             val realm = getRealm()
-            val users = realm.users().list(0, 10000)
+            val pageSize = 1000
+            var firstResult = 0
+            val allUsers = mutableListOf<org.keycloak.representations.idm.UserRepresentation>()
 
-            users.mapNotNull { user ->
+            // Fetch all users using pagination
+            do {
+                val usersPage = realm.users().list(firstResult, pageSize)
+                if (usersPage.isEmpty()) break
+                allUsers.addAll(usersPage)
+                firstResult += pageSize
+            } while (usersPage.size == pageSize)
+
+            logger.info("Fetched ${allUsers.size} total users from Keycloak")
+
+            // Map users without fetching roles/groups (defer to getUserById for detailed info)
+            allUsers.mapNotNull { user ->
                 try {
                     val userId = user.id ?: return@mapNotNull null
-
-                    val realmRoles = realm.users().get(userId)
-                        .roles()
-                        .realmLevel()
-                        .listAll()
-                        .mapNotNull { it.name }
-
-                    val groups = realm.users().get(userId)
-                        .groups()
-                        .mapNotNull { it.path ?: it.name }
 
                     KeycloakUserDto(
                         id = userId,
@@ -74,11 +77,11 @@ class KeycloakAdminService(private val config: KeycloakAdminConfig) {
                         lastName = user.lastName,
                         enabled = user.isEnabled ?: false,
                         attributes = user.attributes ?: emptyMap(),
-                        realmRoles = realmRoles,
-                        groups = groups
+                        realmRoles = emptyList(),
+                        groups = emptyList()
                     )
                 } catch (e: Exception) {
-                    logger.warn("Failed to fetch details for user ${user.id}: ${e.message}")
+                    logger.warn("Failed to map user representation: ${e.message}")
                     null
                 }
             }
@@ -115,7 +118,7 @@ class KeycloakAdminService(private val config: KeycloakAdminConfig) {
                 groups = groups
             )
         } catch (e: Exception) {
-            logger.error("Failed to fetch user $userId from Keycloak: ${e.message}", e)
+            logger.error("Failed to fetch user from Keycloak: ${e.message}", e)
             null
         }
     }

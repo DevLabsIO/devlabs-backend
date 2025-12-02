@@ -27,17 +27,21 @@ class BlobController(
                 return ResponseEntity.badRequest().body(mapOf("error" to "File is empty"))
             }
 
-            val directoryPath = buildDirectoryPath(teamId, projectId, projectName, reviewId, reviewName)
+            val context = UploadContext(teamId, projectId, projectName, reviewId, reviewName)
+            val directoryPath = context.toDirectoryPath()
 
             val objectName = minioService.uploadFile(file, customName, directoryPath)
             val objectUrl = minioService.getObjectUrl(objectName)
-            ResponseEntity.ok(mapOf(
-                "objectName" to objectName, 
-                "url" to objectUrl,
-                "directoryPath" to (directoryPath ?: "root")
-            ))
+            ResponseEntity.ok(
+                mapOf(
+                    "objectName" to objectName,
+                    "url" to objectUrl,
+                    "directoryPath" to (directoryPath ?: "root")
+                )
+            )
         } catch (e: IllegalArgumentException) {
-            ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to e.message.toString()))
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("error" to e.message.toString()))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to upload file: ${e.message}"))
@@ -64,21 +68,24 @@ class BlobController(
 
             val objectName = minioService.uploadFile(file, customName, directoryPath)
             val objectUrl = minioService.getObjectUrl(objectName)
-            
-            ResponseEntity.ok(mapOf(
-                "objectName" to objectName, 
-                "url" to objectUrl,
-                "directoryPath" to (directoryPath ?: "root"),
-                "context" to mapOf(
-                    "teamId" to (teamId ?: ""),
-                    "projectId" to (projectId ?: ""),
-                    "projectName" to (projectName ?: ""),
-                    "reviewId" to (reviewId ?: ""),
-                    "reviewName" to (reviewName ?: "")
+
+            ResponseEntity.ok(
+                mapOf(
+                    "objectName" to objectName,
+                    "url" to objectUrl,
+                    "directoryPath" to (directoryPath ?: "root"),
+                    "context" to mapOf(
+                        "teamId" to (teamId ?: ""),
+                        "projectId" to (projectId ?: ""),
+                        "projectName" to (projectName ?: ""),
+                        "reviewId" to (reviewId ?: ""),
+                        "reviewName" to (reviewName ?: "")
+                    )
                 )
-            ))
+            )
         } catch (e: IllegalArgumentException) {
-            ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to e.message.toString()))
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(mapOf("error" to e.message.toString()))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to upload file: ${e.message}"))
@@ -105,14 +112,17 @@ class BlobController(
         @RequestParam("reviewName", required = false) reviewName: String?
     ): ResponseEntity<Map<String, Any>> {
         return try {
-            val directoryPath = buildDirectoryPath(teamId, projectId, projectName, reviewId, reviewName)
+            val context = UploadContext(teamId, projectId, projectName, reviewId, reviewName)
+            val directoryPath = context.toDirectoryPath()
             val files = minioService.listFiles(directoryPath ?: "")
-            
-            ResponseEntity.ok(mapOf(
-                "files" to files,
-                "directoryPath" to (directoryPath ?: "root"),
-                "count" to files.size
-            ))
+
+            ResponseEntity.ok(
+                mapOf(
+                    "files" to files,
+                    "directoryPath" to (directoryPath ?: "root"),
+                    "count" to files.size
+                )
+            )
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to list files: ${e.message}"))
@@ -128,8 +138,9 @@ class BlobController(
         @RequestParam("reviewName", required = false) reviewName: String?
     ): ResponseEntity<Any> {
         return try {
-            val directoryPath = buildDirectoryPath(teamId, projectId, projectName, reviewId, reviewName)
-            
+            val context = UploadContext(teamId, projectId, projectName, reviewId, reviewName)
+            val directoryPath = context.toDirectoryPath()
+
             if (directoryPath.isNullOrBlank()) {
                 return ResponseEntity.badRequest()
                     .body(mapOf("error" to "At least teamId must be provided"))
@@ -157,19 +168,22 @@ class BlobController(
         @RequestParam("reviewName", required = false) reviewName: String?
     ): ResponseEntity<Map<String, Any>> {
         return try {
-            val directoryPath = buildDirectoryPath(teamId, projectId, projectName, reviewId, reviewName)
-            
+            val context = UploadContext(teamId, projectId, projectName, reviewId, reviewName)
+            val directoryPath = context.toDirectoryPath()
+
             if (directoryPath.isNullOrBlank()) {
                 return ResponseEntity.badRequest()
                     .body(mapOf("error" to "At least teamId must be provided"))
             }
 
             val deletedCount = minioService.deleteDirectory(directoryPath)
-            ResponseEntity.ok(mapOf(
-                "message" to "Directory deleted successfully",
-                "deletedFiles" to deletedCount,
-                "directoryPath" to directoryPath
-            ))
+            ResponseEntity.ok(
+                mapOf(
+                    "message" to "Directory deleted successfully",
+                    "deletedFiles" to deletedCount,
+                    "directoryPath" to directoryPath
+                )
+            )
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to delete directory: ${e.message}"))
@@ -180,50 +194,18 @@ class BlobController(
     fun getFileInfo(@RequestParam("objectName") objectName: String): ResponseEntity<Map<String, Any>> {
         return try {
             val fileUrl = minioService.getObjectUrl(objectName)
-            
-            ResponseEntity.ok(mapOf(
-                "objectName" to objectName,
-                "url" to fileUrl,
-                "fileName" to objectName.substringAfterLast('/'),
-                "directory" to objectName.substringBeforeLast('/', "")
-            ))
+
+            ResponseEntity.ok(
+                mapOf(
+                    "objectName" to objectName,
+                    "url" to fileUrl,
+                    "fileName" to objectName.substringAfterLast('/'),
+                    "directory" to objectName.substringBeforeLast('/', "")
+                )
+            )
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(mapOf("error" to "Failed to get file info: ${e.message}"))
-        }
-    }
-
-    private fun buildDirectoryPath(
-        teamId: String?,
-        projectId: String?,
-        projectName: String?,
-        reviewId: String?,
-        reviewName: String?
-    ): String? {
-        if (teamId.isNullOrBlank()) return null
-
-        return buildString {
-            append(teamId.trim())
-
-            if (!projectId.isNullOrBlank()) {
-                append("/")
-                append(projectId.trim())
-                
-                if (!projectName.isNullOrBlank()) {
-                    append("-")
-                    append(projectName.trim().replace(" ", "_"))
-                }
-
-                if (!reviewId.isNullOrBlank()) {
-                    append("/")
-                    append(reviewId.trim())
-                    
-                    if (!reviewName.isNullOrBlank()) {
-                        append("-")
-                        append(reviewName.trim().replace(" ", "_"))
-                    }
-                }
-            }
         }
     }
 }
@@ -234,30 +216,30 @@ data class UploadContext(
     val projectName: String? = null,
     val reviewId: String? = null,
     val reviewName: String? = null
-) {
-    fun toDirectoryPath(): String? {
-        if (teamId.isNullOrBlank()) return null
+)
 
-        return buildString {
-            append(teamId.trim())
+private fun UploadContext.toDirectoryPath(): String? {
+    if (teamId.isNullOrBlank()) return null
 
-            if (!projectId.isNullOrBlank()) {
+    return buildString {
+        append(teamId.trim())
+
+        if (!projectId.isNullOrBlank()) {
+            append("/")
+            append(projectId.trim())
+
+            if (!projectName.isNullOrBlank()) {
+                append("-")
+                append(projectName.trim().replace(" ", "_"))
+            }
+
+            if (!reviewId.isNullOrBlank()) {
                 append("/")
-                append(projectId.trim())
-                
-                if (!projectName.isNullOrBlank()) {
-                    append("-")
-                    append(projectName.trim().replace(" ", "_"))
-                }
+                append(reviewId.trim())
 
-                if (!reviewId.isNullOrBlank()) {
-                    append("/")
-                    append(reviewId.trim())
-                    
-                    if (!reviewName.isNullOrBlank()) {
-                        append("-")
-                        append(reviewName.trim().replace(" ", "_"))
-                    }
+                if (!reviewName.isNullOrBlank()) {
+                    append("-")
+                    append(reviewName.trim().replace(" ", "_"))
                 }
             }
         }

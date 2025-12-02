@@ -24,14 +24,17 @@ class IndividualScoreController(
     private val projectRepository: ProjectRepository
 ) {
 
-    @PostMapping("/review/{reviewId}/project/{projectId}/summary")
+    @GetMapping("/review/{reviewId}/project/{projectId}/summary")
     @Transactional(readOnly = true)
     fun getProjectEvaluationSummary(
         @PathVariable reviewId: UUID,
-        @PathVariable projectId: UUID,
-        @RequestBody request: UserIdRequest
+        @PathVariable projectId: UUID
     ): ResponseEntity<Any> {
         return try {
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+
             val review = reviewRepository.findById(reviewId).orElseThrow {
                 NotFoundException("Review with id $reviewId not found")
             }
@@ -39,7 +42,7 @@ class IndividualScoreController(
             val project = projectRepository.findById(projectId).orElseThrow {
                 NotFoundException("Project with id $projectId not found")
             }
-            individualScoreService.checkScoreAccessRights(request.userId, review, project)
+            individualScoreService.checkScoreAccessRights(userId, review, project)
 
             val summary = individualScoreService.getProjectEvaluationSummary(reviewId, projectId)
             ResponseEntity.ok(summary)
@@ -58,15 +61,18 @@ class IndividualScoreController(
         }
     }
 
-    @PostMapping("/review/{reviewId}/project/{projectId}/course/{courseId}/data")
+    @GetMapping("/review/{reviewId}/project/{projectId}/course/{courseId}/data")
     fun getCourseEvaluationData(
         @PathVariable reviewId: UUID,
         @PathVariable projectId: UUID,
-        @PathVariable courseId: UUID,
-        @RequestBody request: UserIdRequest
+        @PathVariable courseId: UUID
     ): ResponseEntity<Any> {
         return try {
-            val data = individualScoreService.getCourseEvaluationData(reviewId, projectId, courseId, request.userId)
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+
+            val data = individualScoreService.getCourseEvaluationData(reviewId, projectId, courseId, userId)
             ResponseEntity.ok(data)
         } catch (e: NotFoundException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -88,13 +94,17 @@ class IndividualScoreController(
         @RequestBody request: SubmitCourseScoreRequest
     ): ResponseEntity<Any> {
         return try {
-            val scores = individualScoreService.submitCourseScores(request, request.userId)
+            val userId = SecurityUtils.getCurrentUserId()
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("error" to "User not authenticated"))
+
+            val scores = individualScoreService.submitCourseScores(request, userId)
             
             evaluationDraftService.clearDraftOnSubmission(
                 request.reviewId,
                 request.projectId,
                 request.courseId,
-                request.userId
+                userId
             )
             
             ResponseEntity.status(HttpStatus.CREATED).body(mapOf("success" to true, "count" to scores.size))

@@ -191,7 +191,7 @@ class ReviewRelationshipService(
             NotFoundException("Review with id $reviewId not found")
         }
 
-        val isFullyPublished = reviewPublicationHelper.isReviewFullyPublished(review)
+        val isFullyPublished = reviewPublicationHelper.isReviewFullyPublished(review.id!!)
         val publishedCourses = reviewPublicationHelper.getPublishedCoursesForReview(review)
         val latestPublication = if (publishedCourses.isNotEmpty()) {
             reviewCoursePublicationRepository.findByReview(review)
@@ -225,15 +225,6 @@ class ReviewRelationshipService(
         val review = reviewRepository.findById(reviewId).orElseThrow {
             NotFoundException("Review with id $reviewId not found")
         }
-        
-        review.courses.size
-        review.projects.size
-        review.projects.forEach { project ->
-            project.courses.size
-            project.courses.forEach { course ->
-                course.instructors.size
-            }
-        }
 
         when (user.role) {
             Role.ADMIN, Role.MANAGER -> {
@@ -247,7 +238,7 @@ class ReviewRelationshipService(
             }
         }
 
-        val isFullyPublished = reviewPublicationHelper.isReviewFullyPublished(review)
+        val isFullyPublished = reviewPublicationHelper.isReviewFullyPublished(review.id!!)
         val latestPublication = reviewCoursePublicationRepository.findByReview(review)
             .maxByOrNull { it.publishedAt }?.publishedAt
 
@@ -278,15 +269,6 @@ class ReviewRelationshipService(
         val review = reviewRepository.findById(reviewId).orElseThrow {
             NotFoundException("Review with id $reviewId not found")
         }
-        
-        review.courses.size
-        review.projects.size
-        review.projects.forEach { project ->
-            project.courses.size
-            project.courses.forEach { course ->
-                course.instructors.size
-            }
-        }
 
         when (user.role) {
             Role.ADMIN, Role.MANAGER -> {
@@ -300,7 +282,7 @@ class ReviewRelationshipService(
             }
         }
 
-        val isFullyPublished = reviewPublicationHelper.isReviewFullyPublished(review)
+        val isFullyPublished = reviewPublicationHelper.isReviewFullyPublished(review.id!!)
         val latestPublication = reviewCoursePublicationRepository.findByReview(review)
             .maxByOrNull { it.publishedAt }?.publishedAt
 
@@ -313,7 +295,11 @@ class ReviewRelationshipService(
     }
 
     private fun publishAllCoursesForReview(review: Review, user: User) {
-        review.courses.forEach { course ->
+        val allCourseIds = reviewRepository.findAllCourseIdsForReview(review.id!!)
+        val allCourses = courseRepository.findAllById(allCourseIds)
+        
+        logger.info("Publishing ${allCourses.size} courses for review ${review.id}")
+        allCourses.forEach { course ->
             val existingPublication = reviewCoursePublicationRepository.findByReviewAndCourse(review, course)
             if (existingPublication == null) {
                 val publication = ReviewCoursePublication(
@@ -328,29 +314,20 @@ class ReviewRelationshipService(
     }
 
     private fun publishFacultyCoursesForReview(review: Review, faculty: User) {
-        val directCourses = review.courses.filter { course ->
-            course.instructors.contains(faculty)
-        }
-
-        val projectCourses = review.projects.flatMap { project ->
-            project.courses.filter { course ->
-                course.instructors.contains(faculty)
-            }
-        }.toSet()
+        val facultyId = faculty.id ?: throw IllegalStateException("Faculty ID is null")
         
-        val allFacultyCourses = (directCourses + projectCourses).toSet()
-
-        if (allFacultyCourses.isEmpty()) {
-            logger.error("Faculty ${faculty.id} (${faculty.name}) attempted to publish review ${review.id} (${review.name})")
-            logger.error("Review courses: ${review.courses.map { "${it.id}:${it.name}" }}")
-            logger.error("Review projects: ${review.projects.map { "${it.id}:${it.title}" }}")
-            logger.error("Project courses: ${review.projects.flatMap { p -> p.courses.map { c -> "${c.id}:${c.name}" } }}")
-            logger.error("Faculty instructs: ${faculty.id} - No matching courses found")
+        val facultyCourseIds = reviewRepository.findFacultyCourseIdsForReview(review.id!!, facultyId)
+        
+        if (facultyCourseIds.isEmpty()) {
+            logger.error("Faculty $facultyId (${faculty.name}) attempted to publish review ${review.id} (${review.name})")
+            logger.error("No courses found where faculty is instructor for this review")
             throw ForbiddenException("Faculty can only publish courses they instruct")
         }
 
-        logger.info("Faculty ${faculty.id} (${faculty.name}) publishing ${allFacultyCourses.size} courses for review ${review.id}")
-        allFacultyCourses.forEach { course ->
+        val facultyCourses = courseRepository.findAllById(facultyCourseIds)
+        
+        logger.info("Faculty $facultyId (${faculty.name}) publishing ${facultyCourses.size} courses for review ${review.id}")
+        facultyCourses.forEach { course ->
             logger.debug("Publishing course ${course.id} (${course.name})")
             val existingPublication = reviewCoursePublicationRepository.findByReviewAndCourse(review, course)
             if (existingPublication == null) {
@@ -370,28 +347,20 @@ class ReviewRelationshipService(
     }
 
     private fun unpublishFacultyCoursesForReview(review: Review, faculty: User) {
-        val directCourses = review.courses.filter { course ->
-            course.instructors.contains(faculty)
-        }
+        val facultyId = faculty.id ?: throw IllegalStateException("Faculty ID is null")
         
-        val projectCourses = review.projects.flatMap { project ->
-            project.courses.filter { course ->
-                course.instructors.contains(faculty)
-            }
-        }.toSet()
+        val facultyCourseIds = reviewRepository.findFacultyCourseIdsForReview(review.id!!, facultyId)
         
-        val allFacultyCourses = (directCourses + projectCourses).toSet()
-
-        if (allFacultyCourses.isEmpty()) {
-            logger.error("Faculty ${faculty.id} (${faculty.name}) attempted to unpublish review ${review.id} (${review.name})")
-            logger.error("Review courses: ${review.courses.map { "${it.id}:${it.name}" }}")
-            logger.error("Review projects: ${review.projects.map { "${it.id}:${it.title}" }}")
-            logger.error("Project courses: ${review.projects.flatMap { p -> p.courses.map { c -> "${c.id}:${c.name}" } }}")
+        if (facultyCourseIds.isEmpty()) {
+            logger.error("Faculty $facultyId (${faculty.name}) attempted to unpublish review ${review.id} (${review.name})")
+            logger.error("No courses found where faculty is instructor for this review")
             throw ForbiddenException("Faculty can only unpublish courses they instruct")
         }
 
-        logger.info("Faculty ${faculty.id} (${faculty.name}) unpublishing ${allFacultyCourses.size} courses for review ${review.id}")
-        allFacultyCourses.forEach { course ->
+        val facultyCourses = courseRepository.findAllById(facultyCourseIds)
+        
+        logger.info("Faculty $facultyId (${faculty.name}) unpublishing ${facultyCourses.size} courses for review ${review.id}")
+        facultyCourses.forEach { course ->
             logger.debug("Unpublishing course ${course.id} (${course.name})")
             reviewCoursePublicationRepository.deleteByReviewAndCourse(review, course)
         }

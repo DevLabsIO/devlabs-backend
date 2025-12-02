@@ -1,13 +1,7 @@
 package com.devlabs.devlabsbackend.review.repository
 
-import com.devlabs.devlabsbackend.course.domain.Course
-import com.devlabs.devlabsbackend.project.domain.Project
+import com.devlabs.devlabsbackend.core.constants.RoleConstants
 import com.devlabs.devlabsbackend.review.domain.Review
-import com.devlabs.devlabsbackend.review.domain.dto.ReviewListProjection
-import com.devlabs.devlabsbackend.user.domain.User
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
-import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -15,58 +9,6 @@ import java.time.LocalDate
 import java.util.*
 
 interface ReviewRepository : JpaRepository<Review, UUID> {
-    
-    @Query("""
-        SELECT r.id as id,
-               r.name as name,
-               r.startDate as startDate,
-               r.endDate as endDate,
-               r.createdBy.id as createdById,
-               r.createdBy.name as createdByName,
-               r.createdBy.role as createdByRole
-        FROM Review r
-    """)
-    fun findAllProjected(pageable: Pageable): Page<ReviewListProjection>
-    
-    @Query("""
-        SELECT DISTINCT r.id as id,
-               r.name as name,
-               r.startDate as startDate,
-               r.endDate as endDate,
-               r.createdBy.id as createdById,
-               r.createdBy.name as createdByName,
-               r.createdBy.role as createdByRole
-        FROM Review r
-        JOIN r.courses c
-        JOIN c.instructors i
-        WHERE i = :instructor
-    """)
-    fun findByCoursesInstructorsProjected(
-        @Param("instructor") instructor: User,
-        pageable: Pageable
-    ): Page<ReviewListProjection>
-    
-    @Query("""
-        SELECT DISTINCT r.id as id,
-               r.name as name,
-               r.startDate as startDate,
-               r.endDate as endDate,
-               r.createdBy.id as createdById,
-               r.createdBy.name as createdByName,
-               r.createdBy.role as createdByRole
-        FROM Review r
-        JOIN r.projects p
-        JOIN p.team t
-        JOIN t.members m
-        WHERE m = :student
-    """)
-    fun findByProjectsTeamMembersProjected(
-        @Param("student") student: User,
-        pageable: Pageable
-    ): Page<ReviewListProjection>
-
-    @Query("SELECT r.id, r.startDate FROM Review r")
-    fun findAllIdsOnly(pageable: Pageable): Page<Array<Any>>
     
     @Query(value = """
         SELECT r.id
@@ -100,7 +42,8 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
         FROM (
             SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
             FROM review r
-            WHERE EXISTS (
+            WHERE r.created_by_id = :userId
+            OR EXISTS (
                 -- Reviews with courses taught by the faculty
                 SELECT 1
                 FROM course_review cr
@@ -116,6 +59,15 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                 JOIN project_courses pc ON pc.project_id = p.id
                 JOIN course_instructor ci ON ci.course_id = pc.course_id
                 WHERE rp.review_id = r.id
+                  AND ci.instructor_id = :userId
+            )
+            OR EXISTS (
+                -- Reviews assigned to batches where faculty teaches courses that have those batches
+                SELECT 1
+                FROM review_batch rb
+                JOIN course_batch cb ON cb.batch_id = rb.batch_id
+                JOIN course_instructor ci ON ci.course_id = cb.course_id
+                WHERE rb.review_id = r.id
                   AND ci.instructor_id = :userId
             )
         ) r
@@ -141,7 +93,8 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     @Query(value = """
         SELECT COUNT(DISTINCT r.id)
         FROM review r
-        WHERE EXISTS (
+        WHERE r.created_by_id = :userId
+        OR EXISTS (
             -- Reviews with courses taught by the faculty
             SELECT 1
             FROM course_review cr
@@ -159,6 +112,15 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             WHERE rp.review_id = r.id
               AND ci.instructor_id = :userId
         )
+        OR EXISTS (
+            -- Reviews assigned to batches where faculty teaches courses that have those batches
+            SELECT 1
+            FROM review_batch rb
+            JOIN course_batch cb ON cb.batch_id = rb.batch_id
+            JOIN course_instructor ci ON ci.course_id = cb.course_id
+            WHERE rb.review_id = r.id
+              AND ci.instructor_id = :userId
+        )
     """, nativeQuery = true)
     fun countReviewsForFaculty(@Param("userId") userId: String): Int
     
@@ -167,11 +129,44 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
         FROM (
             SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
             FROM review r
-            JOIN review_project rp ON rp.review_id = r.id
-            JOIN project p ON p.id = rp.project_id
-            JOIN team t ON t.id = p.team_id
-            JOIN team_members tm ON tm.team_id = t.id
-            WHERE tm.user_id = :userId
+            WHERE r.id IN (
+                -- Direct project assignment
+                SELECT rp.review_id
+                FROM review_project rp
+                JOIN project p ON p.id = rp.project_id
+                JOIN team t ON t.id = p.team_id
+                JOIN team_members tm ON tm.team_id = t.id
+                WHERE tm.user_id = :userId
+                
+                UNION
+                
+                -- Course assignment
+                SELECT cr.review_id
+                FROM course_review cr
+                JOIN project_courses pc ON pc.course_id = cr.course_id
+                JOIN project p ON p.id = pc.project_id
+                JOIN team t ON t.id = p.team_id
+                JOIN team_members tm ON tm.team_id = t.id
+                WHERE tm.user_id = :userId
+                
+                UNION
+                
+                -- Batch assignment
+                SELECT rb.review_id
+                FROM review_batch rb
+                JOIN batch_student bs ON rb.batch_id = bs.batch_id
+                WHERE bs.student_id = :userId
+                
+                UNION
+                
+                -- Semester assignment
+                SELECT cr.review_id
+                FROM course_review cr
+                JOIN course c ON c.id = cr.course_id
+                JOIN batch_semester bsem ON bsem.semester_id = c.semester_id
+                JOIN batch_student bs ON bs.batch_id = bsem.batch_id
+                WHERE bs.student_id = :userId
+            )
         ) r
         ORDER BY 
           CASE WHEN :sortBy = 'name' AND :sortOrder = 'asc' THEN r.name END ASC,
@@ -193,78 +188,49 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     ): List<UUID>
     
     @Query(value = """
-        SELECT COUNT(DISTINCT r.id)
-        FROM review r
-        JOIN review_project rp ON rp.review_id = r.id
-        JOIN project p ON p.id = rp.project_id
-        JOIN team t ON t.id = p.team_id
-        JOIN team_members tm ON tm.team_id = t.id
-        WHERE tm.user_id = :userId
+        SELECT COUNT(DISTINCT review_id)
+        FROM (
+            -- Direct project assignment
+            SELECT rp.review_id
+            FROM review_project rp
+            JOIN project p ON p.id = rp.project_id
+            JOIN team t ON t.id = p.team_id
+            JOIN team_members tm ON tm.team_id = t.id
+            WHERE tm.user_id = :userId
+            
+            UNION
+            
+            -- Course assignment
+            SELECT cr.review_id
+            FROM course_review cr
+            JOIN project_courses pc ON pc.course_id = cr.course_id
+            JOIN project p ON p.id = pc.project_id
+            JOIN team t ON t.id = p.team_id
+            JOIN team_members tm ON tm.team_id = t.id
+            WHERE tm.user_id = :userId
+            
+            UNION
+            
+            -- Batch assignment
+            SELECT rb.review_id
+            FROM review_batch rb
+            JOIN batch_student bs ON rb.batch_id = bs.batch_id
+            WHERE bs.student_id = :userId
+            
+            UNION
+            
+            -- Semester assignment
+            SELECT cr.review_id
+            FROM course_review cr
+            JOIN course c ON c.id = cr.course_id
+            JOIN batch_semester bsem ON bsem.semester_id = c.semester_id
+            JOIN batch_student bs ON bs.batch_id = bsem.batch_id
+            WHERE bs.student_id = :userId
+        ) all_reviews
     """, nativeQuery = true)
     fun countReviewsForStudent(@Param("userId") userId: String): Int
- 
-    @Query(value = "SELECT r.id FROM review r ORDER BY r.start_date DESC", 
-           countQuery = "SELECT COUNT(r.id) FROM review r",
-           nativeQuery = true)
-    fun findAllIds(pageable: Pageable): Page<UUID>
-    
-    @Query(value = """
-        SELECT r.id
-        FROM (
-            SELECT DISTINCT r.id, r.start_date
-            FROM review r
-            JOIN course_review cr ON r.id = cr.review_id
-            JOIN course c ON c.id = cr.course_id
-            JOIN course_instructor ci ON c.id = ci.course_id
-            WHERE ci.instructor_id = :#{#instructor.id}
-        ) r
-        ORDER BY r.start_date DESC
-    """, 
-    countQuery = """
-        SELECT COUNT(DISTINCT r.id)
-        FROM review r
-        JOIN course_review cr ON r.id = cr.review_id
-        JOIN course c ON c.id = cr.course_id
-        JOIN course_instructor ci ON c.id = ci.course_id
-        WHERE ci.instructor_id = :#{#instructor.id}
-    """,
-    nativeQuery = true)
-    fun findIdsByCoursesInstructorsContaining(@Param("instructor") instructor: User, pageable: Pageable): Page<UUID>
-    
-    @Query(value = """
-        SELECT r.id
-        FROM (
-            SELECT DISTINCT r.id, r.start_date
-            FROM review r
-            JOIN project_review pr ON r.id = pr.review_id
-            JOIN project p ON p.id = pr.project_id
-            JOIN team t ON p.team_id = t.id
-            JOIN team_member tm ON t.id = tm.team_id
-            WHERE tm.member_id = :#{#student.id}
-        ) r
-        ORDER BY r.start_date DESC
-    """, 
-    countQuery = """
-        SELECT COUNT(DISTINCT r.id)
-        FROM review r
-        JOIN project_review pr ON r.id = pr.review_id
-        JOIN project p ON p.id = pr.project_id
-        JOIN team t ON p.team_id = t.id
-        JOIN team_member tm ON t.id = tm.team_id
-        WHERE tm.member_id = :#{#student.id}
-    """,
-    nativeQuery = true)
-    fun findIdsByProjectsTeamMembersContaining(@Param("student") student: User, pageable: Pageable): Page<UUID>
-    
-    @Query("""
-        SELECT DISTINCT r.id FROM Review r
-        LEFT JOIN r.courses c
-        LEFT JOIN r.projects p
-        LEFT JOIN r.batches b
-        WHERE r.id IN :ids
-    """)
-    fun warmupCollections(@Param("ids") ids: List<UUID>): List<UUID>
-    
+
+
     @Query(value = """
         SELECT 
             r.id,
@@ -275,10 +241,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             u.name as created_by_name,
             u.email as created_by_email,
             CASE u.role
-                WHEN 0 THEN 'STUDENT'
-                WHEN 1 THEN 'ADMIN'
-                WHEN 2 THEN 'FACULTY'
-                WHEN 3 THEN 'MANAGER'
+                WHEN ${RoleConstants.STUDENT} THEN 'STUDENT'
+                WHEN ${RoleConstants.ADMIN} THEN 'ADMIN'
+                WHEN ${RoleConstants.FACULTY} THEN 'FACULTY'
+                WHEN ${RoleConstants.MANAGER} THEN 'MANAGER'
             END as created_by_role,
             r.rubrics_id,
             rb.name as rubrics_name
@@ -301,10 +267,10 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             u.name as created_by_name,
             u.email as created_by_email,
             CASE u.role
-                WHEN 0 THEN 'STUDENT'
-                WHEN 1 THEN 'ADMIN'
-                WHEN 2 THEN 'FACULTY'
-                WHEN 3 THEN 'MANAGER'
+                WHEN ${RoleConstants.STUDENT} THEN 'STUDENT'
+                WHEN ${RoleConstants.ADMIN} THEN 'ADMIN'
+                WHEN ${RoleConstants.FACULTY} THEN 'FACULTY'
+                WHEN ${RoleConstants.MANAGER} THEN 'MANAGER'
             END as created_by_role,
             r.rubrics_id,
             rb.name as rubrics_name
@@ -314,48 +280,220 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
         WHERE r.id = :reviewId
     """, nativeQuery = true)
     fun findReviewDataById(@Param("reviewId") reviewId: UUID): Map<String, Any>?
-    
+
     @Query(value = """
-        SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
-        FROM review r
-        JOIN course_review cr ON cr.review_id = r.id
-        WHERE cr.course_id IN :courseIds
-    """, nativeQuery = true)
-    fun findReviewDataByCourses(@Param("courseIds") courseIds: List<UUID>): List<Map<String, Any>>
-    
-    @Query(value = """
-        SELECT 
-            c_r.review_id,
-            c.id as id,
-            c.name,
-            c.code,
-            s.id as semester_id,
-            s.name as semester_name,
-            s.year as semester_year,
-            s.is_active as semester_is_active
-        FROM course_review c_r
-        JOIN course c ON c.id = c_r.course_id
-        LEFT JOIN semester s ON s.id = c.semester_id
-        WHERE c_r.review_id IN :reviewIds
+        SELECT DISTINCT
+            review_id,
+            id,
+            name,
+            code,
+            semester_id,
+            semester_name,
+            semester_year,
+            semester_is_active
+        FROM (
+            SELECT 
+                c_r.review_id,
+                c.id as id,
+                c.name,
+                c.code,
+                s.id as semester_id,
+                s.name as semester_name,
+                s.year as semester_year,
+                s.is_active as semester_is_active
+            FROM course_review c_r
+            JOIN course c ON c.id = c_r.course_id
+            LEFT JOIN semester s ON s.id = c.semester_id
+            WHERE c_r.review_id IN :reviewIds
+            
+            UNION
+            
+            SELECT 
+                rp.review_id,
+                c.id as id,
+                c.name,
+                c.code,
+                s.id as semester_id,
+                s.name as semester_name,
+                s.year as semester_year,
+                s.is_active as semester_is_active
+            FROM review_project rp
+            JOIN project p ON p.id = rp.project_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            LEFT JOIN semester s ON s.id = c.semester_id
+            WHERE rp.review_id IN :reviewIds
+            
+            UNION
+            
+            SELECT 
+                rb.review_id,
+                c.id as id,
+                c.name,
+                c.code,
+                s.id as semester_id,
+                s.name as semester_name,
+                s.year as semester_year,
+                s.is_active as semester_is_active
+            FROM review_batch rb
+            JOIN batch_student bs ON bs.batch_id = rb.batch_id
+            JOIN team_members tm ON tm.user_id = bs.student_id
+            JOIN project p ON p.team_id = tm.team_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            LEFT JOIN semester s ON s.id = c.semester_id
+            WHERE rb.review_id IN :reviewIds
+        ) all_courses
     """, nativeQuery = true)
     fun findCoursesByReviewIds(@Param("reviewIds") reviewIds: List<UUID>): List<Map<String, Any>>
     
 
     @Query(value = """
-        SELECT 
-            c.id as id,
-            c.name,
-            c.code,
-            s.id as semester_id,
-            s.name as semester_name,
-            s.year as semester_year,
-            s.is_active as semester_is_active
-        FROM course_review c_r
-        JOIN course c ON c.id = c_r.course_id
-        LEFT JOIN semester s ON s.id = c.semester_id
-        WHERE c_r.review_id = :reviewId
+        SELECT DISTINCT
+            id,
+            name,
+            code,
+            semester_id,
+            semester_name,
+            semester_year,
+            semester_is_active
+        FROM (
+            SELECT 
+                c.id as id,
+                c.name,
+                c.code,
+                s.id as semester_id,
+                s.name as semester_name,
+                s.year as semester_year,
+                s.is_active as semester_is_active
+            FROM course_review c_r
+            JOIN course c ON c.id = c_r.course_id
+            LEFT JOIN semester s ON s.id = c.semester_id
+            WHERE c_r.review_id = :reviewId
+            
+            UNION
+            
+            SELECT 
+                c.id as id,
+                c.name,
+                c.code,
+                s.id as semester_id,
+                s.name as semester_name,
+                s.year as semester_year,
+                s.is_active as semester_is_active
+            FROM review_project rp
+            JOIN project p ON p.id = rp.project_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            LEFT JOIN semester s ON s.id = c.semester_id
+            WHERE rp.review_id = :reviewId
+            
+            UNION
+            
+            SELECT 
+                c.id as id,
+                c.name,
+                c.code,
+                s.id as semester_id,
+                s.name as semester_name,
+                s.year as semester_year,
+                s.is_active as semester_is_active
+            FROM review_batch rb
+            JOIN batch_student bs ON bs.batch_id = rb.batch_id
+            JOIN team_members tm ON tm.user_id = bs.student_id
+            JOIN project p ON p.team_id = tm.team_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            LEFT JOIN semester s ON s.id = c.semester_id
+            WHERE rb.review_id = :reviewId
+        ) all_courses
     """, nativeQuery = true)
     fun findCoursesByReviewId(@Param("reviewId") reviewId: UUID): List<Map<String, Any>>
+
+    @Query(value = """
+        SELECT DISTINCT id FROM (
+            SELECT c.id
+            FROM course_review c_r
+            JOIN course c ON c.id = c_r.course_id
+            WHERE c_r.review_id = :reviewId
+            
+            UNION
+            
+            SELECT c.id
+            FROM review_project rp
+            JOIN project p ON p.id = rp.project_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            WHERE rp.review_id = :reviewId
+            
+            UNION
+            
+            SELECT c.id
+            FROM review_batch rb
+            JOIN batch_student bs ON bs.batch_id = rb.batch_id
+            JOIN team_members tm ON tm.user_id = bs.student_id
+            JOIN project p ON p.team_id = tm.team_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            WHERE rb.review_id = :reviewId
+        ) all_courses
+    """, nativeQuery = true)
+    fun findAllCourseIdsForReview(@Param("reviewId") reviewId: UUID): List<UUID>
+    
+    @Query(value = """
+        SELECT DISTINCT
+            rb.review_id,
+            b.id,
+            b.name
+        FROM review_batch rb
+        JOIN batch b ON b.id = rb.batch_id
+        WHERE rb.review_id IN :reviewIds
+    """, nativeQuery = true)
+    fun findBatchesByReviewIds(@Param("reviewIds") reviewIds: List<UUID>): List<Map<String, Any>>
+    
+    @Query(value = """
+        SELECT DISTINCT
+            b.id,
+            b.name
+        FROM review_batch rb
+        JOIN batch b ON b.id = rb.batch_id
+        WHERE rb.review_id = :reviewId
+    """, nativeQuery = true)
+    fun findBatchesByReviewId(@Param("reviewId") reviewId: UUID): List<Map<String, Any>>
+    
+    // Get direct course mappings from course_review table (actual DB mappings, not derived)
+    @Query(value = """
+        SELECT cr.course_id
+        FROM course_review cr
+        WHERE cr.review_id = :reviewId
+    """, nativeQuery = true)
+    fun findDirectCourseIdsByReviewId(@Param("reviewId") reviewId: UUID): List<UUID>
+    
+    // Get direct batch mappings from review_batch table (actual DB mappings, not derived)
+    @Query(value = """
+        SELECT rb.batch_id
+        FROM review_batch rb
+        WHERE rb.review_id = :reviewId
+    """, nativeQuery = true)
+    fun findDirectBatchIdsByReviewId(@Param("reviewId") reviewId: UUID): List<UUID>
+    
+    // Get direct project mappings from review_project table (actual DB mappings, not derived)
+    @Query(value = """
+        SELECT rp.project_id
+        FROM review_project rp
+        WHERE rp.review_id = :reviewId
+    """, nativeQuery = true)
+    fun findDirectProjectIdsByReviewId(@Param("reviewId") reviewId: UUID): List<UUID>
+    
+    // Get semester IDs from directly mapped courses (actual DB mappings)
+    @Query(value = """
+        SELECT DISTINCT c.semester_id
+        FROM course_review cr
+        JOIN course c ON c.id = cr.course_id
+        WHERE cr.review_id = :reviewId
+        AND c.semester_id IS NOT NULL
+    """, nativeQuery = true)
+    fun findDirectSemesterIdsByReviewId(@Param("reviewId") reviewId: UUID): List<UUID>
     
     @Query(value = """
         SELECT 
@@ -392,40 +530,129 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     
     @Query(value = """
         SELECT 
-            pr.review_id,
-            p.id,
-            p.title,
-            t.id as team_id,
-            t.name as team_name,
-            STRING_AGG(m.id, '|') as member_ids,
-            STRING_AGG(m.name, '|') as member_names
-        FROM review_project pr
-        JOIN project p ON p.id = pr.project_id
-        JOIN team t ON t.id = p.team_id
-        LEFT JOIN team_members tm ON tm.team_id = t.id
-        LEFT JOIN "user" m ON m.id = tm.user_id
-        WHERE pr.review_id IN :reviewIds
-        GROUP BY pr.review_id, p.id, p.title, t.id, t.name
-        ORDER BY pr.review_id, p.id
+            review_id,
+            id,
+            title,
+            team_id,
+            team_name,
+            STRING_AGG(CAST(member_id AS VARCHAR), '|' ORDER BY member_id) as member_ids,
+            STRING_AGG(member_name, '|' ORDER BY member_id) as member_names
+        FROM (
+            SELECT DISTINCT
+                pr.review_id,
+                p.id,
+                p.title,
+                t.id as team_id,
+                t.name as team_name,
+                m.id as member_id,
+                m.name as member_name
+            FROM review_project pr
+            JOIN project p ON p.id = pr.project_id
+            JOIN team t ON t.id = p.team_id
+            LEFT JOIN team_members tm ON tm.team_id = t.id
+            LEFT JOIN "user" m ON m.id = tm.user_id
+            WHERE pr.review_id IN :reviewIds
+            
+            UNION
+            
+            SELECT DISTINCT
+                cr.review_id,
+                p.id,
+                p.title,
+                t.id as team_id,
+                t.name as team_name,
+                m.id as member_id,
+                m.name as member_name
+            FROM course_review cr
+            JOIN project_courses pc ON pc.course_id = cr.course_id
+            JOIN project p ON p.id = pc.project_id
+            JOIN team t ON t.id = p.team_id
+            LEFT JOIN team_members tm ON tm.team_id = t.id
+            LEFT JOIN "user" m ON m.id = tm.user_id
+            WHERE cr.review_id IN :reviewIds
+            
+            UNION
+            
+            SELECT DISTINCT
+                rb.review_id,
+                p.id,
+                p.title,
+                t.id as team_id,
+                t.name as team_name,
+                m.id as member_id,
+                m.name as member_name
+            FROM review_batch rb
+            JOIN batch_student bs ON bs.batch_id = rb.batch_id
+            JOIN team_members tm ON tm.user_id = bs.student_id
+            JOIN project p ON p.team_id = tm.team_id
+            JOIN team t ON t.id = p.team_id
+            LEFT JOIN "user" m ON m.id = tm.user_id
+            WHERE rb.review_id IN :reviewIds
+        ) all_projects
+        GROUP BY review_id, id, title, team_id, team_name
+        ORDER BY review_id, id
     """, nativeQuery = true)
     fun findProjectsByReviewIds(@Param("reviewIds") reviewIds: List<UUID>): List<Map<String, Any>>
     
     @Query(value = """
         SELECT 
-            p.id,
-            p.title,
-            t.id as team_id,
-            t.name as team_name,
-            STRING_AGG(m.id, '|') as member_ids,
-            STRING_AGG(m.name, '|') as member_names
-        FROM review_project pr
-        JOIN project p ON p.id = pr.project_id
-        JOIN team t ON t.id = p.team_id
-        LEFT JOIN team_members tm ON tm.team_id = t.id
-        LEFT JOIN "user" m ON m.id = tm.user_id
-        WHERE pr.review_id = :reviewId
-        GROUP BY p.id, p.title, t.id, t.name
-        ORDER BY p.id
+            id,
+            title,
+            team_id,
+            team_name,
+            STRING_AGG(CAST(member_id AS VARCHAR), '|' ORDER BY member_id) as member_ids,
+            STRING_AGG(member_name, '|' ORDER BY member_id) as member_names
+        FROM (
+            SELECT DISTINCT
+                p.id,
+                p.title,
+                t.id as team_id,
+                t.name as team_name,
+                m.id as member_id,
+                m.name as member_name
+            FROM review_project pr
+            JOIN project p ON p.id = pr.project_id
+            JOIN team t ON t.id = p.team_id
+            LEFT JOIN team_members tm ON tm.team_id = t.id
+            LEFT JOIN "user" m ON m.id = tm.user_id
+            WHERE pr.review_id = :reviewId
+            
+            UNION
+            
+            SELECT DISTINCT
+                p.id,
+                p.title,
+                t.id as team_id,
+                t.name as team_name,
+                m.id as member_id,
+                m.name as member_name
+            FROM course_review cr
+            JOIN project_courses pc ON pc.course_id = cr.course_id
+            JOIN project p ON p.id = pc.project_id
+            JOIN team t ON t.id = p.team_id
+            LEFT JOIN team_members tm ON tm.team_id = t.id
+            LEFT JOIN "user" m ON m.id = tm.user_id
+            WHERE cr.review_id = :reviewId
+            
+            UNION
+            
+            SELECT DISTINCT
+                p.id,
+                p.title,
+                t.id as team_id,
+                t.name as team_name,
+                m.id as member_id,
+                m.name as member_name
+            FROM review_batch rb
+            JOIN batch_student bs ON bs.batch_id = rb.batch_id
+            JOIN team_members tm ON tm.user_id = bs.student_id
+            JOIN project p ON p.team_id = tm.team_id
+            JOIN team t ON t.id = p.team_id
+            LEFT JOIN "user" m ON m.id = tm.user_id
+            WHERE rb.review_id = :reviewId
+        ) all_projects
+        GROUP BY id, title, team_id, team_name
+        ORDER BY id
     """, nativeQuery = true)
     fun findProjectsByReviewId(@Param("reviewId") reviewId: UUID): List<Map<String, Any>>
     
@@ -437,89 +664,7 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     """, nativeQuery = true)
     fun findPublishedCountsByReviewIds(@Param("reviewIds") reviewIds: List<UUID>): List<Map<String, Any>>
     
-    @Query("""
-        SELECT new com.devlabs.devlabsbackend.review.domain.dto.ReviewListDTO(
-            r.id,
-            r.name,
-            r.startDate,
-            r.endDate,
-            r.createdBy.id,
-            r.createdBy.name,
-            r.createdBy.email,
-            r.createdBy.role,
-            r.rubrics.id,
-            r.rubrics.name,
-            CAST(COUNT(DISTINCT c.id) AS long),
-            CAST(COUNT(DISTINCT p.id) AS long),
-            CAST(COUNT(DISTINCT rcp.id) AS long)
-        )
-        FROM Review r
-        LEFT JOIN r.courses c
-        LEFT JOIN r.projects p
-        LEFT JOIN ReviewCoursePublication rcp ON rcp.review.id = r.id
-        WHERE r.id IN :ids
-        GROUP BY r.id, r.name, r.startDate, r.endDate, 
-                 r.createdBy.id, r.createdBy.name, r.createdBy.email, r.createdBy.role,
-                 r.rubrics.id, r.rubrics.name
-    """)
-    fun findReviewListDTOsByIds(@Param("ids") ids: List<UUID>): List<com.devlabs.devlabsbackend.review.domain.dto.ReviewListDTO>
-    
-    @Query("""
-        SELECT new com.devlabs.devlabsbackend.review.domain.dto.ReviewListDTO(
-            r.id,
-            r.name,
-            r.startDate,
-            r.endDate,
-            r.createdBy.id,
-            r.createdBy.name,
-            r.createdBy.email,
-            r.createdBy.role,
-            r.rubrics.id,
-            r.rubrics.name,
-            CAST(COUNT(DISTINCT c.id) AS long),
-            CAST(COUNT(DISTINCT p.id) AS long),
-            CAST(COUNT(DISTINCT rcp.id) AS long)
-        )
-        FROM Review r
-        LEFT JOIN r.courses c
-        LEFT JOIN r.projects p
-        LEFT JOIN ReviewCoursePublication rcp ON rcp.review.id = r.id
-        WHERE r.id IN :ids
-        GROUP BY r.id, r.name, r.startDate, r.endDate, 
-                 r.createdBy.id, r.createdBy.name, r.createdBy.email, r.createdBy.role,
-                 r.rubrics.id, r.rubrics.name
-        ORDER BY r.startDate ASC
-    """)
-    fun findReviewListDTOsByIdsOrderByStartDateAsc(@Param("ids") ids: List<UUID>): List<com.devlabs.devlabsbackend.review.domain.dto.ReviewListDTO>
-    
-    @Query("""
-        SELECT new com.devlabs.devlabsbackend.review.domain.dto.ReviewListDTO(
-            r.id,
-            r.name,
-            r.startDate,
-            r.endDate,
-            r.createdBy.id,
-            r.createdBy.name,
-            r.createdBy.email,
-            r.createdBy.role,
-            r.rubrics.id,
-            r.rubrics.name,
-            CAST(COUNT(DISTINCT c.id) AS long),
-            CAST(COUNT(DISTINCT p.id) AS long),
-            CAST(COUNT(DISTINCT rcp.id) AS long)
-        )
-        FROM Review r
-        LEFT JOIN r.courses c
-        LEFT JOIN r.projects p
-        LEFT JOIN ReviewCoursePublication rcp ON rcp.review.id = r.id
-        WHERE r.id IN :ids
-        GROUP BY r.id, r.name, r.startDate, r.endDate, 
-                 r.createdBy.id, r.createdBy.name, r.createdBy.email, r.createdBy.role,
-                 r.rubrics.id, r.rubrics.name
-        ORDER BY r.startDate DESC
-    """)
-    fun findReviewListDTOsByIdsOrderByStartDateDesc(@Param("ids") ids: List<UUID>): List<com.devlabs.devlabsbackend.review.domain.dto.ReviewListDTO>
-    
+
     @Query(value = """
         SELECT EXISTS (
             SELECT 1 FROM review_project WHERE review_id = :reviewId AND project_id = :projectId
@@ -678,7 +823,9 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                   END
               )
               AND (
-                  EXISTS (
+                  -- Reviews created by the faculty
+                  r.created_by_id = :userId
+                  OR EXISTS (
                       -- Reviews with courses taught by the faculty
                       SELECT 1
                       FROM course_review cr
@@ -694,6 +841,15 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                       JOIN project_courses pc ON pc.project_id = p.id
                       JOIN course_instructor ci ON ci.course_id = pc.course_id
                       WHERE rp.review_id = r.id
+                        AND ci.instructor_id = :userId
+                  )
+                  OR EXISTS (
+                      -- Reviews assigned to batches where faculty teaches courses that have those batches
+                      SELECT 1
+                      FROM review_batch rb
+                      JOIN course_batch cb ON cb.batch_id = rb.batch_id
+                      JOIN course_instructor ci ON ci.course_id = cb.course_id
+                      WHERE rb.review_id = r.id
                         AND ci.instructor_id = :userId
                   )
               )
@@ -742,7 +898,9 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
               END
           )
           AND (
-              EXISTS (
+              -- Reviews created by the faculty
+              r.created_by_id = :userId
+              OR EXISTS (
                   -- Reviews with courses taught by the faculty
                   SELECT 1
                   FROM course_review cr
@@ -760,6 +918,15 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
                   WHERE rp.review_id = r.id
                     AND ci.instructor_id = :userId
               )
+              OR EXISTS (
+                  -- Reviews assigned to batches where faculty teaches courses that have those batches
+                  SELECT 1
+                  FROM review_batch rb
+                  JOIN course_batch cb ON cb.batch_id = rb.batch_id
+                  JOIN course_instructor ci ON ci.course_id = cb.course_id
+                  WHERE rb.review_id = r.id
+                    AND ci.instructor_id = :userId
+              )
           )
     """, nativeQuery = true)
     fun countSearchReviewsForFaculty(
@@ -775,11 +942,44 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
         FROM (
             SELECT DISTINCT r.id, r.name, r.start_date, r.end_date, r.created_at
             FROM review r
-            JOIN review_project rp ON rp.review_id = r.id
-            JOIN project p ON p.id = rp.project_id
-            JOIN team t ON t.id = p.team_id
-            JOIN team_members tm ON tm.team_id = t.id
-            WHERE tm.user_id = :userId
+            WHERE r.id IN (
+                -- Direct project assignment
+                SELECT rp.review_id
+                FROM review_project rp
+                JOIN project p ON p.id = rp.project_id
+                JOIN team t ON t.id = p.team_id
+                JOIN team_members tm ON tm.team_id = t.id
+                WHERE tm.user_id = :userId
+                
+                UNION
+                
+                -- Course assignment
+                SELECT cr.review_id
+                FROM course_review cr
+                JOIN project_courses pc ON pc.course_id = cr.course_id
+                JOIN project p ON p.id = pc.project_id
+                JOIN team t ON t.id = p.team_id
+                JOIN team_members tm ON tm.team_id = t.id
+                WHERE tm.user_id = :userId
+                
+                UNION
+                
+                -- Batch assignment
+                SELECT rb.review_id
+                FROM review_batch rb
+                JOIN batch_student bs ON rb.batch_id = bs.batch_id
+                WHERE bs.student_id = :userId
+                
+                UNION
+                
+                -- Semester assignment
+                SELECT cr.review_id
+                FROM course_review cr
+                JOIN course c ON c.id = cr.course_id
+                JOIN batch_semester bsem ON bsem.semester_id = c.semester_id
+                JOIN batch_student bs ON bs.batch_id = bsem.batch_id
+                WHERE bs.student_id = :userId
+            )
               AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
               AND (:courseId IS NULL OR EXISTS (
                   SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
@@ -822,30 +1022,66 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     ): List<UUID>
     
     @Query(value = """
-        SELECT COUNT(DISTINCT r.id)
-        FROM review r
-        JOIN review_project rp ON rp.review_id = r.id
-        JOIN project p ON p.id = rp.project_id
-        JOIN team t ON t.id = p.team_id
-        JOIN team_members tm ON tm.team_id = t.id
-        WHERE tm.user_id = :userId
-          AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:courseId IS NULL OR EXISTS (
-              SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
-          ))
-          AND (
-              CASE :status
-                  WHEN 'live' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
-                  WHEN 'ongoing' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
-                  WHEN 'current' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
-                  WHEN 'completed' THEN r.end_date < CAST(:currentDate AS DATE)
-                  WHEN 'ended' THEN r.end_date < CAST(:currentDate AS DATE)
-                  WHEN 'past' THEN r.end_date < CAST(:currentDate AS DATE)
-                  WHEN 'upcoming' THEN r.start_date > CAST(:currentDate AS DATE)
-                  WHEN 'future' THEN r.start_date > CAST(:currentDate AS DATE)
-                  ELSE TRUE
-              END
-          )
+        SELECT COUNT(DISTINCT review_id)
+        FROM (
+            SELECT r.id as review_id
+            FROM review r
+            WHERE r.id IN (
+                -- Direct project assignment
+                SELECT rp.review_id
+                FROM review_project rp
+                JOIN project p ON p.id = rp.project_id
+                JOIN team t ON t.id = p.team_id
+                JOIN team_members tm ON tm.team_id = t.id
+                WHERE tm.user_id = :userId
+                
+                UNION
+                
+                -- Course assignment
+                SELECT cr.review_id
+                FROM course_review cr
+                JOIN project_courses pc ON pc.course_id = cr.course_id
+                JOIN project p ON p.id = pc.project_id
+                JOIN team t ON t.id = p.team_id
+                JOIN team_members tm ON tm.team_id = t.id
+                WHERE tm.user_id = :userId
+                
+                UNION
+                
+                -- Batch assignment
+                SELECT rb.review_id
+                FROM review_batch rb
+                JOIN batch_student bs ON rb.batch_id = bs.batch_id
+                WHERE bs.student_id = :userId
+                
+                UNION
+                
+                -- Semester assignment
+                SELECT cr.review_id
+                FROM course_review cr
+                JOIN course c ON c.id = cr.course_id
+                JOIN batch_semester bsem ON bsem.semester_id = c.semester_id
+                JOIN batch_student bs ON bs.batch_id = bsem.batch_id
+                WHERE bs.student_id = :userId
+            )
+              AND (:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%')))
+              AND (:courseId IS NULL OR EXISTS (
+                  SELECT 1 FROM course_review cr WHERE cr.review_id = r.id AND cr.course_id = :courseId
+              ))
+              AND (
+                  CASE :status
+                      WHEN 'live' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'ongoing' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'current' THEN r.start_date <= CAST(:currentDate AS DATE) AND r.end_date >= CAST(:currentDate AS DATE)
+                      WHEN 'completed' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'ended' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'past' THEN r.end_date < CAST(:currentDate AS DATE)
+                      WHEN 'upcoming' THEN r.start_date > CAST(:currentDate AS DATE)
+                      WHEN 'future' THEN r.start_date > CAST(:currentDate AS DATE)
+                      ELSE TRUE
+                  END
+              )
+        ) all_reviews
     """, nativeQuery = true)
     fun countSearchReviewsForStudent(
         @Param("userId") userId: String,
@@ -901,56 +1137,292 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
     """)
     fun findByIdWithRubrics(@Param("reviewId") reviewId: UUID): Review?
     
+
     @Query(value = """
+        WITH active_semester_reviews AS (
+            -- Reviews assigned to courses in active semesters
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN course_review cr ON cr.review_id = r.id
+            JOIN course c ON c.id = cr.course_id
+            JOIN semester s ON s.id = c.semester_id
+            WHERE s.is_active = true
+            
+            UNION
+            
+            -- Reviews assigned to batches in active semesters
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN review_batch rb ON rb.review_id = r.id
+            JOIN batch_semester bsem ON bsem.batch_id = rb.batch_id
+            JOIN semester s ON s.id = bsem.semester_id
+            WHERE s.is_active = true
+            
+            UNION
+            
+            -- Reviews with directly assigned projects in active semesters
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN review_project rp ON rp.review_id = r.id
+            JOIN project p ON p.id = rp.project_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            JOIN semester s ON s.id = c.semester_id
+            WHERE s.is_active = true
+        )
         SELECT 
-            COUNT(*) as total_count,
+            COUNT(DISTINCT id) as total_count,
             SUM(CASE WHEN :currentDate BETWEEN start_date AND end_date THEN 1 ELSE 0 END) as active_count,
             SUM(CASE WHEN :currentDate > end_date THEN 1 ELSE 0 END) as completed_count
-        FROM review
-    """, nativeQuery = true)
-    fun getReviewStats(@Param("currentDate") currentDate: LocalDate): Map<String, Any>
-    
-    @Query(value = """
-        SELECT r.id, r.name, r.start_date, r.end_date
-        FROM review r
-        WHERE r.start_date > :currentDate
-        ORDER BY r.start_date ASC
-        LIMIT 5
-    """, nativeQuery = true)
-    fun findUpcomingReviews(@Param("currentDate") currentDate: LocalDate): List<Map<String, Any>>
-    
-    @Query(value = """
-        SELECT r.id, r.name, r.start_date, r.end_date
-        FROM review r
-        WHERE r.id IN (:ids)
-    """, nativeQuery = true)
-    fun findReviewDataByIds(@Param("ids") ids: List<UUID>): List<Map<String, Any>>
-    
-    @Query(value = """
-        SELECT 
-            COUNT(DISTINCT r.id) as total_count,
-            SUM(CASE WHEN :currentDate BETWEEN r.start_date AND r.end_date THEN 1 ELSE 0 END) as active_count,
-            SUM(CASE WHEN :currentDate > r.end_date THEN 1 ELSE 0 END) as completed_count
-        FROM review r
-        JOIN course_review cr ON cr.review_id = r.id
-        JOIN course c ON c.id = cr.course_id
-        JOIN semester s ON s.id = c.semester_id
-        WHERE s.is_active = true
+        FROM active_semester_reviews
     """, nativeQuery = true)
     fun getReviewStatsForActiveSemesters(@Param("currentDate") currentDate: LocalDate): Map<String, Any>
     
     @Query(value = """
-        SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
-        FROM review r
-        JOIN course_review cr ON cr.review_id = r.id
-        JOIN course c ON c.id = cr.course_id
-        JOIN semester s ON s.id = c.semester_id
-        WHERE s.is_active = true 
-        AND r.start_date > :currentDate
-        ORDER BY r.start_date ASC
+        WITH active_semester_reviews AS (
+            -- Reviews assigned to courses in active semesters
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN course_review cr ON cr.review_id = r.id
+            JOIN course c ON c.id = cr.course_id
+            JOIN semester s ON s.id = c.semester_id
+            WHERE s.is_active = true 
+            AND r.start_date > :currentDate
+            
+            UNION
+            
+            -- Reviews assigned to batches in active semesters
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN review_batch rb ON rb.review_id = r.id
+            JOIN batch_semester bsem ON bsem.batch_id = rb.batch_id
+            JOIN semester s ON s.id = bsem.semester_id
+            WHERE s.is_active = true 
+            AND r.start_date > :currentDate
+            
+            UNION
+            
+            -- Reviews with directly assigned projects in active semesters
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN review_project rp ON rp.review_id = r.id
+            JOIN project p ON p.id = rp.project_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            JOIN semester s ON s.id = c.semester_id
+            WHERE s.is_active = true 
+            AND r.start_date > :currentDate
+        )
+        SELECT id, name, start_date, end_date
+        FROM active_semester_reviews
+        ORDER BY start_date ASC
         LIMIT 5
     """, nativeQuery = true)
     fun findUpcomingReviewsForActiveSemesters(@Param("currentDate") currentDate: LocalDate): List<Map<String, Any>>
+
+    // ==================== FACULTY DASHBOARD QUERIES ====================
+    
+    @Query(value = """
+        WITH faculty_reviews AS (
+            -- Reviews created by the faculty
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            WHERE r.created_by_id = :userId
+            
+            UNION
+            
+            -- Reviews assigned to courses taught by the faculty
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN course_review cr ON cr.review_id = r.id
+            JOIN course_instructor ci ON ci.course_id = cr.course_id
+            WHERE ci.instructor_id = :userId
+            
+            UNION
+            
+            -- Reviews with directly assigned projects from courses taught by the faculty
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN review_project rp ON rp.review_id = r.id
+            JOIN project p ON p.id = rp.project_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course_instructor ci ON ci.course_id = pc.course_id
+            WHERE ci.instructor_id = :userId
+            
+            UNION
+            
+            -- Reviews assigned to batches where faculty teaches courses that have those batches
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN review_batch rb ON rb.review_id = r.id
+            JOIN course_batch cb ON cb.batch_id = rb.batch_id
+            JOIN course_instructor ci ON ci.course_id = cb.course_id
+            WHERE ci.instructor_id = :userId
+        )
+        SELECT 
+            COUNT(DISTINCT id) as total_count,
+            SUM(CASE WHEN :currentDate BETWEEN start_date AND end_date THEN 1 ELSE 0 END) as active_count,
+            SUM(CASE WHEN :currentDate > end_date THEN 1 ELSE 0 END) as completed_count
+        FROM faculty_reviews
+    """, nativeQuery = true)
+    fun getReviewStatsForFaculty(
+        @Param("userId") userId: String,
+        @Param("currentDate") currentDate: LocalDate
+    ): Map<String, Any>
+    
+    @Query(value = """
+        WITH faculty_reviews AS (
+            -- Reviews created by the faculty
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            WHERE r.created_by_id = :userId
+            AND r.start_date > :currentDate
+            
+            UNION
+            
+            -- Reviews assigned to courses taught by the faculty
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN course_review cr ON cr.review_id = r.id
+            JOIN course_instructor ci ON ci.course_id = cr.course_id
+            WHERE ci.instructor_id = :userId
+            AND r.start_date > :currentDate
+            
+            UNION
+            
+            -- Reviews with directly assigned projects from courses taught by the faculty
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN review_project rp ON rp.review_id = r.id
+            JOIN project p ON p.id = rp.project_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course_instructor ci ON ci.course_id = pc.course_id
+            WHERE ci.instructor_id = :userId
+            AND r.start_date > :currentDate
+            
+            UNION
+            
+            -- Reviews assigned to batches where faculty teaches courses that have those batches
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN review_batch rb ON rb.review_id = r.id
+            JOIN course_batch cb ON cb.batch_id = rb.batch_id
+            JOIN course_instructor ci ON ci.course_id = cb.course_id
+            WHERE ci.instructor_id = :userId
+            AND r.start_date > :currentDate
+        )
+        SELECT id, name, start_date, end_date
+        FROM faculty_reviews
+        ORDER BY start_date ASC
+        LIMIT 5
+    """, nativeQuery = true)
+    fun findUpcomingReviewsForFaculty(
+        @Param("userId") userId: String,
+        @Param("currentDate") currentDate: LocalDate
+    ): List<Map<String, Any>>
+
+    // ==================== STUDENT DASHBOARD QUERIES ====================
+    
+    @Query(value = """
+        WITH student_reviews AS (
+            -- Reviews with directly assigned projects where student is a team member
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN review_project rp ON rp.review_id = r.id
+            JOIN project p ON p.id = rp.project_id
+            JOIN team_members tm ON tm.team_id = p.team_id
+            WHERE tm.user_id = :userId
+            
+            UNION
+            
+            -- Reviews assigned to courses the student is enrolled in
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN course_review cr ON cr.review_id = r.id
+            JOIN course_student cs ON cs.course_id = cr.course_id
+            WHERE cs.student_id = :userId
+            
+            UNION
+            
+            -- Reviews assigned to batches the student belongs to
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN review_batch rb ON rb.review_id = r.id
+            JOIN batch_student bs ON bs.batch_id = rb.batch_id
+            WHERE bs.student_id = :userId
+            
+            UNION
+            
+            -- Reviews assigned to courses where student is in a batch that has that course
+            SELECT DISTINCT r.id, r.start_date, r.end_date
+            FROM review r
+            JOIN course_review cr ON cr.review_id = r.id
+            JOIN course_batch cb ON cb.course_id = cr.course_id
+            JOIN batch_student bs ON bs.batch_id = cb.batch_id
+            WHERE bs.student_id = :userId
+        )
+        SELECT 
+            COUNT(DISTINCT id) as total_count,
+            SUM(CASE WHEN :currentDate BETWEEN start_date AND end_date THEN 1 ELSE 0 END) as active_count,
+            SUM(CASE WHEN :currentDate > end_date THEN 1 ELSE 0 END) as completed_count
+        FROM student_reviews
+    """, nativeQuery = true)
+    fun getReviewStatsForStudent(
+        @Param("userId") userId: String,
+        @Param("currentDate") currentDate: LocalDate
+    ): Map<String, Any>
+    
+    @Query(value = """
+        WITH student_reviews AS (
+            -- Reviews with directly assigned projects where student is a team member
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN review_project rp ON rp.review_id = r.id
+            JOIN project p ON p.id = rp.project_id
+            JOIN team_members tm ON tm.team_id = p.team_id
+            WHERE tm.user_id = :userId
+            AND r.start_date > :currentDate
+            
+            UNION
+            
+            -- Reviews assigned to courses the student is enrolled in
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN course_review cr ON cr.review_id = r.id
+            JOIN course_student cs ON cs.course_id = cr.course_id
+            WHERE cs.student_id = :userId
+            AND r.start_date > :currentDate
+            
+            UNION
+            
+            -- Reviews assigned to batches the student belongs to
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN review_batch rb ON rb.review_id = r.id
+            JOIN batch_student bs ON bs.batch_id = rb.batch_id
+            WHERE bs.student_id = :userId
+            AND r.start_date > :currentDate
+            
+            UNION
+            
+            -- Reviews assigned to courses where student is in a batch that has that course
+            SELECT DISTINCT r.id, r.name, r.start_date, r.end_date
+            FROM review r
+            JOIN course_review cr ON cr.review_id = r.id
+            JOIN course_batch cb ON cb.course_id = cr.course_id
+            JOIN batch_student bs ON bs.batch_id = cb.batch_id
+            WHERE bs.student_id = :userId
+            AND r.start_date > :currentDate
+        )
+        SELECT id, name, start_date, end_date
+        FROM student_reviews
+        ORDER BY start_date ASC
+        LIMIT 5
+    """, nativeQuery = true)
+    fun findUpcomingReviewsForStudent(
+        @Param("userId") userId: String,
+        @Param("currentDate") currentDate: LocalDate
+    ): List<Map<String, Any>>
     
     @Query(value = """
         WITH review_projects AS (
@@ -996,12 +1468,12 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
             rp.project_title,
             rp.team_id,
             rp.team_name,
-            STRING_AGG(m.id, '|' ORDER BY m.id) as member_ids,
-            STRING_AGG(m.profile_id, '|' ORDER BY m.id) as member_profile_ids,
-            STRING_AGG(m.name, '|' ORDER BY m.id) as member_names,
-            STRING_AGG(m.email, '|' ORDER BY m.id) as member_emails,
-            STRING_AGG(CAST(bs.batch_id AS VARCHAR), '|') as batch_ids,
-            STRING_AGG(CAST(pc.course_id AS VARCHAR), '|') as course_ids
+            STRING_AGG(DISTINCT CAST(m.id AS VARCHAR), '|') as member_ids,
+            STRING_AGG(DISTINCT m.profile_id, '|') as member_profile_ids,
+            STRING_AGG(DISTINCT m.name, '|') as member_names,
+            STRING_AGG(DISTINCT m.email, '|') as member_emails,
+            STRING_AGG(DISTINCT CAST(bs.batch_id AS VARCHAR), '|') as batch_ids,
+            STRING_AGG(DISTINCT CAST(pc.course_id AS VARCHAR), '|') as course_ids
         FROM review_projects rp
         LEFT JOIN team_members tm ON tm.team_id = rp.team_id
         LEFT JOIN "user" m ON m.id = tm.user_id
@@ -1034,4 +1506,41 @@ interface ReviewRepository : JpaRepository<Review, UUID> {
         @Param("batchId") batchId: String?,
         @Param("courseId") courseId: String?
     ): List<Map<String, Any>>
+
+    @Query(value = """
+        SELECT DISTINCT c.id
+        FROM (
+            SELECT c.id
+            FROM course_review c_r
+            JOIN course c ON c.id = c_r.course_id
+            JOIN course_instructor ci ON ci.course_id = c.id
+            WHERE c_r.review_id = :reviewId AND ci.instructor_id = :facultyId
+            
+            UNION
+            
+            SELECT c.id
+            FROM review_project rp
+            JOIN project p ON p.id = rp.project_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            JOIN course_instructor ci ON ci.course_id = c.id
+            WHERE rp.review_id = :reviewId AND ci.instructor_id = :facultyId
+            
+            UNION
+            
+            SELECT c.id
+            FROM review_batch rb
+            JOIN batch_student bs ON bs.batch_id = rb.batch_id
+            JOIN team_members tm ON tm.user_id = bs.student_id
+            JOIN project p ON p.team_id = tm.team_id
+            JOIN project_courses pc ON pc.project_id = p.id
+            JOIN course c ON c.id = pc.course_id
+            JOIN course_instructor ci ON ci.course_id = c.id
+            WHERE rb.review_id = :reviewId AND ci.instructor_id = :facultyId
+        ) c
+    """, nativeQuery = true)
+    fun findFacultyCourseIdsForReview(
+        @Param("reviewId") reviewId: UUID,
+        @Param("facultyId") facultyId: String
+    ): List<UUID>
 }

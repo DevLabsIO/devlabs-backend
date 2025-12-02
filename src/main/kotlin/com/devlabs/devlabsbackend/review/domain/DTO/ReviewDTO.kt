@@ -56,9 +56,14 @@ data class ReviewResponse(
     val createdBy: CreatedByInfo,
     val courses: List<CourseInfo>,
     val projects: List<ProjectInfo>,
-    val sections: List<String>,
+    val sections: List<SectionInfo>,
     val rubricsInfo: RubricInfo,
-    val isPublished: Boolean? = null
+    val isPublished: Boolean? = null,
+    // Actual database mappings for edit forms
+    val semesterIds: List<UUID>? = null,
+    val batchIds: List<UUID>? = null,
+    val courseIds: List<UUID>? = null,
+    val projectIds: List<UUID>? = null
 ) : Serializable
 
 @JsonTypeName("CreatedByInfo")
@@ -113,6 +118,12 @@ data class SemesterInfo(
     val name: String,
     val year: Int,
     val isActive: Boolean
+) : Serializable
+
+@JsonTypeName("SectionInfo")
+data class SectionInfo(
+    val id: UUID,
+    val name: String
 ) : Serializable
 
 @JsonTypeName("ReviewCriteriaResponse")
@@ -260,28 +271,3 @@ data class CriteriaScoreData(
     val maxScore: Double,
     val comment: String?
 )
-
-fun ReviewListDTO.toReviewResponse(): ReviewResponse {
-    return ReviewResponse(
-        id = this.id,
-        name = this.name,
-        startDate = this.startDate,
-        endDate = this.endDate,
-        publishedAt = null,
-        createdBy = CreatedByInfo(
-            id = this.createdById ?: "",
-            name = this.createdByName ?: "Unknown",
-            email = this.createdByEmail ?: "",
-            role = this.createdByRole?.name ?: "UNKNOWN"
-        ),
-        courses = emptyList(),
-        projects = emptyList(),
-        sections = emptyList(),
-        rubricsInfo = RubricInfo(
-            id = this.rubricsId ?: UUID.randomUUID(),
-            name = this.rubricsName ?: "Unknown",
-            criteria = emptyList()
-        ),
-        isPublished = this.publishedCourseCount > 0
-    )
-}

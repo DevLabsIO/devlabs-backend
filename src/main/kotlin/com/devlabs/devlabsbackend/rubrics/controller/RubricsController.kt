@@ -16,6 +16,15 @@ class RubricsController(
     private val rubricsService: RubricsService
 ) {
 
+    private fun normalizeSortParams(
+        sortBy: String?,
+        sortDirection: String?
+    ): Pair<String, String> {
+        val actualSortBy = if (sortBy.isNullOrBlank()) "createdAt" else sortBy
+        val actualSortDirection = if (sortDirection.isNullOrBlank()) "desc" else sortDirection
+        return actualSortBy to actualSortDirection
+    }
+
     @GetMapping
     fun getAllRubrics(
         @RequestParam(defaultValue = "0") page: Int,
@@ -24,8 +33,7 @@ class RubricsController(
         @RequestParam(required = false) sortDirection: String?
     ): ResponseEntity<Any> {
         return try {
-            val actualSortBy = if (sortBy.isNullOrBlank()) "createdAt" else sortBy
-            val actualSortDirection = if (sortDirection.isNullOrBlank()) "desc" else sortDirection
+            val (actualSortBy, actualSortDirection) = normalizeSortParams(sortBy, sortDirection)
             val response = rubricsService.getAllRubrics(page, size, actualSortBy, actualSortDirection)
             ResponseEntity.ok(response)
         } catch (e: Exception) {
@@ -43,8 +51,7 @@ class RubricsController(
         @RequestParam(required = false) sortDirection: String?
     ): ResponseEntity<Any> {
         return try {
-            val actualSortBy = if (sortBy.isNullOrBlank()) "createdAt" else sortBy
-            val actualSortDirection = if (sortDirection.isNullOrBlank()) "desc" else sortDirection
+            val (actualSortBy, actualSortDirection) = normalizeSortParams(sortBy, sortDirection)
             val response = rubricsService.searchRubrics(query, page, size, actualSortBy, actualSortDirection)
             ResponseEntity.ok(response)
         } catch (e: Exception) {
@@ -76,8 +83,7 @@ class RubricsController(
         @RequestParam(required = false) sortDirection: String?
     ): ResponseEntity<Any> {
         return try {
-            val actualSortBy = if (sortBy.isNullOrBlank()) "createdAt" else sortBy
-            val actualSortDirection = if (sortDirection.isNullOrBlank()) "desc" else sortDirection
+            val (actualSortBy, actualSortDirection) = normalizeSortParams(sortBy, sortDirection)
             val response = rubricsService.getRubricsByUser(userId, page, size, actualSortBy, actualSortDirection)
             ResponseEntity.ok(response)
         } catch (e: NotFoundException) {
@@ -97,8 +103,7 @@ class RubricsController(
         @RequestParam(required = false) sortDirection: String?
     ): ResponseEntity<Any> {
         return try {
-            val actualSortBy = if (sortBy.isNullOrBlank()) "createdAt" else sortBy
-            val actualSortDirection = if (sortDirection.isNullOrBlank()) "desc" else sortDirection
+            val (actualSortBy, actualSortDirection) = normalizeSortParams(sortBy, sortDirection)
             val response = rubricsService.getSharedRubrics(page, size, actualSortBy, actualSortDirection)
             ResponseEntity.ok(response)
         } catch (e: Exception) {

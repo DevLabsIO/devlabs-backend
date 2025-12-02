@@ -51,7 +51,7 @@ class CourseController(
                 .body(mapOf("message" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("message" to "Failed to add batches to course: \${e.message}"))
+                .body(mapOf("message" to "Failed to add batches to course: ${e.message}"))
         }
     }
 
@@ -66,7 +66,7 @@ class CourseController(
                 .body(mapOf("message" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("message" to "Failed to remove batch from course: \${e.message}"))
+                .body(mapOf("message" to "Failed to remove batch from course: ${e.message}"))
         }
     }
 
@@ -85,7 +85,7 @@ class CourseController(
                 .body(mapOf("message" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("message" to "Failed to assign students to course: \${e.message}"))
+                .body(mapOf("message" to "Failed to assign students to course: ${e.message}"))
         }
     }
 
@@ -100,7 +100,7 @@ class CourseController(
                 .body(mapOf("message" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("message" to "Failed to remove student from course: \${e.message}"))
+                .body(mapOf("message" to "Failed to remove student from course: ${e.message}"))
         }
     }
 
@@ -136,7 +136,7 @@ class CourseController(
                 .body(mapOf("message" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("message" to "Failed to assign instructors to course: \${e.message}"))
+                .body(mapOf("message" to "Failed to assign instructors to course: ${e.message}"))
         }
     }
 
@@ -154,7 +154,7 @@ class CourseController(
                 .body(mapOf("message" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("message" to "Failed to remove instructor from course: \${e.message}"))
+                .body(mapOf("message" to "Failed to remove instructor from course: ${e.message}"))
         }
     }
 
@@ -195,7 +195,7 @@ class CourseController(
                 .body(mapOf("error" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to retrieve user's active courses: \${e.message}"))
+                .body(mapOf("error" to "Failed to retrieve user's active courses: ${e.message}"))
         }
     }
 
@@ -214,7 +214,7 @@ class CourseController(
                 .body(mapOf("error" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to retrieve student's courses with scores: \${e.message}"))
+                .body(mapOf("error" to "Failed to retrieve student's courses with scores: ${e.message}"))
         }
     }
 
@@ -235,7 +235,7 @@ class CourseController(
                 .body(mapOf("error" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to retrieve performance chart data: \${e.message}"))
+                .body(mapOf("error" to "Failed to retrieve performance chart data: ${e.message}"))
         }
     }
 
@@ -259,7 +259,7 @@ class CourseController(
                 .body(mapOf("error" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to get courses: \${e.message}"))
+                .body(mapOf("error" to "Failed to get courses: ${e.message}"))
         }
     }
 
@@ -289,7 +289,7 @@ class CourseController(
                 .body(mapOf("error" to e.message))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(mapOf("error" to "Failed to search courses: \${e.message}"))
+                .body(mapOf("error" to "Failed to search courses: ${e.message}"))
         }
     }
 

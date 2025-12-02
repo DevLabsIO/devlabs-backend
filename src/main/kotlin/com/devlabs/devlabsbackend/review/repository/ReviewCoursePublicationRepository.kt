@@ -7,27 +7,30 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
 interface ReviewCoursePublicationRepository : JpaRepository<ReviewCoursePublication, UUID> {
-    
+
     @Query("SELECT rcp FROM ReviewCoursePublication rcp WHERE rcp.review = :review")
     fun findByReview(@Param("review") review: Review): List<ReviewCoursePublication>
-    
+
     @Query("SELECT rcp FROM ReviewCoursePublication rcp WHERE rcp.review = :review AND rcp.course = :course")
     fun findByReviewAndCourse(@Param("review") review: Review, @Param("course") course: Course): ReviewCoursePublication?
-    
+
     @Query("SELECT rcp.course FROM ReviewCoursePublication rcp WHERE rcp.review = :review")
     fun findPublishedCoursesByReview(@Param("review") review: Review): List<Course>
-    
+
+    @Transactional
     @Modifying
     @Query("DELETE FROM ReviewCoursePublication rcp WHERE rcp.review = :review")
     fun deleteByReview(@Param("review") review: Review)
-    
+
+    @Transactional
     @Modifying
     @Query("DELETE FROM ReviewCoursePublication rcp WHERE rcp.review = :review AND rcp.course = :course")
     fun deleteByReviewAndCourse(@Param("review") review: Review, @Param("course") course: Course)
-    
+
     @Query("""
         SELECT DISTINCT rcp FROM ReviewCoursePublication rcp 
         LEFT JOIN FETCH rcp.review r
@@ -37,21 +40,7 @@ interface ReviewCoursePublicationRepository : JpaRepository<ReviewCoursePublicat
         ORDER BY rcp.publishedAt DESC
     """)
     fun findRecentPublicationsByCourses(@Param("courses") courses: List<Course>): List<ReviewCoursePublication>
-    
-    @Query("""
-        SELECT DISTINCT rcp FROM ReviewCoursePublication rcp 
-        WHERE rcp.course IN :courses
-    """)
-    fun findReviewsByCourses(@Param("courses") courses: List<Course>): List<ReviewCoursePublication>
-    
-    @Query("""
-        SELECT rcp.review.id as reviewId, COUNT(rcp) as publishedCount
-        FROM ReviewCoursePublication rcp
-        WHERE rcp.review IN :reviews
-        GROUP BY rcp.review.id
-    """)
-    fun countPublishedCoursesByReviews(@Param("reviews") reviews: List<Review>): List<Map<String, Any>>
-    
+
     @Query(value = """
         SELECT CASE 
             WHEN :role IN ('ADMIN', 'MANAGER') THEN
@@ -101,7 +90,7 @@ interface ReviewCoursePublicationRepository : JpaRepository<ReviewCoursePublicat
         @Param("userId") userId: String,
         @Param("role") role: String
     ): Boolean
-    
+
 
     @Query(value = """
         SELECT r.id as review_id,
@@ -173,27 +162,7 @@ interface ReviewCoursePublicationRepository : JpaRepository<ReviewCoursePublicat
         WHERE review_id = :reviewId
     """, nativeQuery = true)
     fun getPublishedCourseCount(@Param("reviewId") reviewId: UUID): Int
-    
-    @Query(value = """
-        SELECT COUNT(DISTINCT course_id)
-        FROM course_review
-        WHERE review_id = :reviewId
-    """, nativeQuery = true)
-    fun getTotalCourseCount(@Param("reviewId") reviewId: UUID): Int
-    
-    @Query(value = """
-        SELECT 
-            r.id as review_id,
-            r.name as review_name,
-            MAX(rcp.published_at) as published_at
-        FROM review_course_publication rcp
-        JOIN review r ON r.id = rcp.review_id
-        GROUP BY r.id, r.name
-        ORDER BY MAX(rcp.published_at) DESC
-        LIMIT 5
-    """, nativeQuery = true)
-    fun findRecentPublicationsNative(): List<Map<String, Any>>
-    
+
     @Query(value = """
         SELECT 
             r.id as review_id,
@@ -209,25 +178,12 @@ interface ReviewCoursePublicationRepository : JpaRepository<ReviewCoursePublicat
         LIMIT 5
     """, nativeQuery = true)
     fun findRecentPublicationsForActiveSemesters(): List<Map<String, Any>>
-    
 
     @Query(value = """
-        SELECT DISTINCT cr.course_id
-        FROM course_review cr
-        WHERE cr.review_id = :reviewId
-          AND (
-            :role IN ('ADMIN', 'MANAGER')
-            OR EXISTS (
-                SELECT 1
-                FROM course_instructor ci
-                WHERE ci.course_id = cr.course_id
-                  AND ci.instructor_id = :userId
-            )
-          )
+        SELECT COUNT(DISTINCT course_id)
+        FROM course_review
+        WHERE review_id = :reviewId
     """, nativeQuery = true)
-    fun getPublishableCourseIds(
-        @Param("reviewId") reviewId: UUID,
-        @Param("userId") userId: String,
-        @Param("role") role: String
-    ): List<UUID>
+    fun getTotalCourseCount(@Param("reviewId") reviewId: UUID): Int
+
 }

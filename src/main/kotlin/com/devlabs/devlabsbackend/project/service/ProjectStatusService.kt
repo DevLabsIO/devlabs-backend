@@ -138,7 +138,8 @@ class ProjectStatusService(
             CacheEvict(value = [CacheConfig.PROJECT_DETAIL], allEntries = true),
             CacheEvict(value = [CacheConfig.PROJECTS_LIST], allEntries = true),
             CacheEvict(value = [CacheConfig.PROJECTS_ARCHIVE_CACHE], allEntries = true),
-            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true)
+            CacheEvict(value = [CacheConfig.TEAM_DETAIL_CACHE], allEntries = true),
+            CacheEvict(value = [CacheConfig.DASHBOARD_ADMIN, CacheConfig.DASHBOARD_MANAGER, CacheConfig.DASHBOARD_STUDENT], allEntries = true)
         ]
     )
     @Transactional

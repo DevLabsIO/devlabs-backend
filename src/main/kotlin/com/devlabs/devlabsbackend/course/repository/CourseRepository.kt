@@ -1,7 +1,9 @@
 package com.devlabs.devlabsbackend.course.repository
 
+import com.devlabs.devlabsbackend.core.constants.RoleConstants
 import com.devlabs.devlabsbackend.course.domain.Course
 import com.devlabs.devlabsbackend.semester.domain.Semester
+import com.devlabs.devlabsbackend.user.domain.Role
 import com.devlabs.devlabsbackend.user.domain.User
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -80,41 +82,6 @@ interface CourseRepository : JpaRepository<Course, UUID> {
     """, nativeQuery = true)
     fun findCourseListData(@Param("ids") ids: List<UUID>): List<Map<String, Any>>
 
-    @Query(value = """
-        SELECT ci.course_id, u.id, u.name, u.email,
-               CASE u.role
-                   WHEN 0 THEN 'STUDENT'
-                   WHEN 1 THEN 'ADMIN'
-                   WHEN 2 THEN 'FACULTY'
-                   WHEN 3 THEN 'MANAGER'
-               END as role
-        FROM course_instructor ci
-        JOIN "user" u ON u.id = ci.instructor_id
-        WHERE ci.course_id IN (:courseIds)
-    """, nativeQuery = true)
-    fun findInstructorsByCourseIds(@Param("courseIds") courseIds: List<UUID>): List<Map<String, Any>>
-
-    @Query(value = """
-        SELECT cs.course_id, u.id, u.name, u.email,
-               CASE u.role
-                   WHEN 0 THEN 'STUDENT'
-                   WHEN 1 THEN 'ADMIN'
-                   WHEN 2 THEN 'FACULTY'
-                   WHEN 3 THEN 'MANAGER'
-               END as role
-        FROM course_student cs
-        JOIN "user" u ON u.id = cs.student_id
-        WHERE cs.course_id IN (:courseIds)
-    """, nativeQuery = true)
-    fun findStudentsByCourseIds(@Param("courseIds") courseIds: List<UUID>): List<Map<String, Any>>
-
-    @Query(value = """
-        SELECT cb.course_id, b.id, b.name, b.section, b.join_year
-        FROM course_batch cb
-        JOIN batch b ON b.id = cb.batch_id
-        WHERE cb.course_id IN (:courseIds)
-    """, nativeQuery = true)
-    fun findBatchesByCourseIds(@Param("courseIds") courseIds: List<UUID>): List<Map<String, Any>>
 
     @Query(value = """
         SELECT c.id
@@ -195,10 +162,10 @@ interface CourseRepository : JpaRepository<Course, UUID> {
     @Query(value = """
         SELECT u.id, u.name, u.email,
                CASE u.role
-                   WHEN 0 THEN 'STUDENT'
-                   WHEN 1 THEN 'ADMIN'
-                   WHEN 2 THEN 'FACULTY'
-                   WHEN 3 THEN 'MANAGER'
+                   WHEN ${RoleConstants.STUDENT} THEN 'STUDENT'
+                   WHEN ${RoleConstants.ADMIN} THEN 'ADMIN'
+                   WHEN ${RoleConstants.FACULTY} THEN 'FACULTY'
+                   WHEN ${RoleConstants.MANAGER} THEN 'MANAGER'
                END as role,
                u.phone_number, u.is_active
         FROM course_student cs
@@ -229,10 +196,10 @@ interface CourseRepository : JpaRepository<Course, UUID> {
     @Query(value = """
         SELECT u.id, u.name, u.email,
                CASE u.role
-                   WHEN 0 THEN 'STUDENT'
-                   WHEN 1 THEN 'ADMIN'
-                   WHEN 2 THEN 'FACULTY'
-                   WHEN 3 THEN 'MANAGER'
+                   WHEN ${RoleConstants.STUDENT} THEN 'STUDENT'
+                   WHEN ${RoleConstants.ADMIN} THEN 'ADMIN'
+                   WHEN ${RoleConstants.FACULTY} THEN 'FACULTY'
+                   WHEN ${RoleConstants.MANAGER} THEN 'MANAGER'
                END as role,
                u.phone_number, u.is_active
         FROM course_student cs
@@ -406,17 +373,6 @@ interface CourseRepository : JpaRepository<Course, UUID> {
     @Query("SELECT DISTINCT c FROM Course c JOIN c.batches b JOIN b.students s WHERE c.semester.isActive = true AND s = :student")
     fun findCoursesByActiveSemestersAndStudentThroughBatch(@Param("student") student: User): List<Course>
 
-    @Query("SELECT c FROM Course c WHERE c.semester.isActive = true")
-    fun findCoursesByActiveSemesters(): List<Course>
-
-    @Query("SELECT c FROM Course c WHERE c.semester.isActive = true AND :instructor MEMBER OF c.instructors")
-    fun findCoursesByActiveSemestersAndInstructor(@Param("instructor") instructor: User): List<Course>
-
-    fun findBySemester(semester: Semester): List<Course>
-    
-    @Query("SELECT c FROM Course c LEFT JOIN FETCH c.semester WHERE c.id IN :ids")
-    fun findAllByIdWithSemester(@Param("ids") ids: List<UUID>): List<Course>
-    
     fun existsBySemester(@Param("semester") semester: Semester): Boolean
 
     @Query("SELECT c FROM Course c LEFT JOIN FETCH c.batches WHERE c.id = :courseId")
@@ -427,10 +383,7 @@ interface CourseRepository : JpaRepository<Course, UUID> {
     
     @Query("SELECT c FROM Course c LEFT JOIN FETCH c.instructors WHERE c.id = :courseId")
     fun findByIdWithInstructors(@Param("courseId") courseId: UUID): Course?
-    
-    @Query("SELECT c FROM Course c LEFT JOIN FETCH c.students LEFT JOIN FETCH c.instructors WHERE c.id = :courseId")
-    fun findByIdWithStudentsAndInstructors(@Param("courseId") courseId: UUID): Course?
-    
+
     @Query("SELECT COUNT(c) FROM Course c WHERE c.semester.isActive = true")
     fun countByActiveSemesters(): Long
     
@@ -449,20 +402,8 @@ interface CourseRepository : JpaRepository<Course, UUID> {
         )
     """, nativeQuery = true)
     fun isUserStudent(@Param("courseId") courseId: UUID, @Param("userId") userId: String): Boolean
-    
-    fun findBySemesterIn(semesters: List<Semester>): List<Course>
-    
-    fun findByInstructorsContaining(instructor: User): List<Course>
-    
-    @Query("""
-        SELECT DISTINCT c FROM Course c
-        LEFT JOIN FETCH c.semester
-        LEFT JOIN FETCH c.instructors
-        JOIN c.batches b
-        WHERE b.id IN :batchIds
-    """)
-    fun findCoursesByBatchIds(@Param("batchIds") batchIds: List<UUID>): List<Course>
-    
+
+
     @Query(value = """
         SELECT DISTINCT c.* 
         FROM course c

@@ -18,10 +18,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     
     @Query("SELECT DISTINCT p FROM Project p JOIN p.courses c WHERE c = :course AND LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%'))")
     fun findByCourseAndTitleContainingIgnoreCase(@Param("course") course: Course, @Param("query") query: String, pageable: Pageable): Page<Project>
-    
-    @Query("SELECT DISTINCT p FROM Project p JOIN p.courses c WHERE p.status IN :statuses")
-    fun findByStatusIn(@Param("statuses") statuses: List<ProjectStatus>): List<Project>
-    
+
     @Query("SELECT DISTINCT p FROM Project p JOIN p.courses c WHERE p.status IN (com.devlabs.devlabsbackend.project.domain.ProjectStatus.ONGOING, com.devlabs.devlabsbackend.project.domain.ProjectStatus.PROPOSED) AND c.semester.id = :semesterId")
     fun findActiveProjectsBySemester(@Param("semesterId") semesterId: UUID): List<Project>
     
@@ -88,15 +85,6 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     fun findProjectListDataByIds(@Param("ids") ids: List<UUID>): List<Map<String, Any>>
     
     @Query("""
-        SELECT DISTINCT p FROM Project p
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        WHERE p.id IN :projectIds
-    """)
-    fun findByIdInWithRelations(@Param("projectIds") projectIds: List<UUID>): List<Project>
-    
-    @Query("""
         SELECT DISTINCT p FROM Project p 
         LEFT JOIN FETCH p.team t
         LEFT JOIN FETCH t.members
@@ -107,22 +95,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         WHERE p.id = :projectId
     """)
     fun findByIdWithRelations(@Param("projectId") projectId: UUID): Project?
-    
-    @Query("SELECT DISTINCT p.id, p.title, p.updatedAt FROM Project p JOIN p.courses c WHERE c = :course")
-    fun findIdsByCourse(@Param("course") course: Course, pageable: Pageable): Page<Array<Any>>
-    
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        LEFT JOIN FETCH c.students
-        LEFT JOIN FETCH c.instructors
-        LEFT JOIN FETCH p.reviews
-        WHERE p IN (SELECT proj FROM Project proj JOIN proj.courses course WHERE course = :course)
-    """)
-    fun findByCourseWithRelations(@Param("course") course: Course, pageable: Pageable): Page<Project>
-    
+
     @Query("""
         SELECT DISTINCT p FROM Project p 
         LEFT JOIN FETCH p.team t
@@ -130,16 +103,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         WHERE p.id = :projectId
     """)
     fun findByIdWithTeamAndMembers(@Param("projectId") projectId: UUID): Project?
-    
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        WHERE p.id IN :projectIds
-    """)
-    fun findByIdInWithTeamAndMembers(@Param("projectIds") projectIds: List<UUID>): List<Project>
-    
+
     @Query(value = """
         SELECT 
             p.id, p.title, p.description, p.objectives, p.github_url, p.status,
@@ -229,10 +193,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         @Param("projectId") projectId: UUID,
         @Param("userId") userId: String
     ): Boolean
-    
-    @Query("SELECT DISTINCT p.id, p.title, p.updatedAt FROM Project p WHERE p.team = :team")
-    fun findIdsByTeam(@Param("team") team: Team, pageable: Pageable): Page<Array<Any>>
-    
+
     @Query(value = """
         SELECT 
             p.id, p.title, p.description, p.objectives, p.github_url, p.status,
@@ -265,34 +226,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         WHERE p.team_id = :teamId
     """, nativeQuery = true)
     fun countProjectsByTeam(@Param("teamId") teamId: UUID): Long
-    
-    @Query(value = """
-        SELECT DISTINCT p.id
-        FROM project p
-        JOIN team t ON t.id = p.team_id
-        JOIN team_members tm ON tm.team_id = t.id
-        JOIN project_courses pc ON pc.project_id = p.id
-        WHERE tm.user_id = :userId
-          AND pc.course_id = :courseId
-        ORDER BY 
-          CASE WHEN :sortBy = 'title' AND :sortOrder = 'asc' THEN p.title END ASC,
-          CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
-          CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
-          CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC NULLS LAST,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC NULLS LAST,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC NULLS LAST,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC NULLS LAST
-        OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
-    """, nativeQuery = true)
-    fun findIdsByUserAndCourse(
-        @Param("userId") userId: String,
-        @Param("courseId") courseId: UUID,
-        @Param("sortBy") sortBy: String,
-        @Param("sortOrder") sortOrder: String,
-        @Param("offset") offset: Int,
-        @Param("limit") limit: Int
-    ): List<UUID>
+
     
     @Query(value = """
         SELECT 
@@ -307,15 +241,15 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         WHERE tm.user_id = :userId
           AND pc.course_id = :courseId
         ORDER BY 
-          CASE WHEN :sortBy = 'title' AND :sortOrder = 'asc' THEN p.title END ASC,
-          CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
-          CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
-          CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC NULLS LAST,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC NULLS LAST,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC NULLS LAST,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC NULLS LAST
-        OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
+          CASE WHEN :sortBy = 'title' AND :sortOrder = 'ASC' THEN p.title END ASC,
+          CASE WHEN :sortBy = 'title' AND :sortOrder = 'DESC' THEN p.title END DESC,
+          CASE WHEN :sortBy = 'status' AND :sortOrder = 'ASC' THEN p.status END ASC,
+          CASE WHEN :sortBy = 'status' AND :sortOrder = 'DESC' THEN p.status END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN p.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN p.created_at END DESC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'ASC' THEN p.updated_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'DESC' THEN p.updated_at END DESC NULLS LAST
+        OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun findProjectsByUserAndCourseNative(
         @Param("userId") userId: String,
@@ -339,31 +273,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         @Param("userId") userId: String,
         @Param("courseId") courseId: UUID
     ): Int
-    
-    @Query(value = """
-        SELECT DISTINCT p.id
-        FROM project p
-        JOIN team t ON t.id = p.team_id
-        JOIN team_members tm ON tm.team_id = t.id
-        WHERE tm.user_id = :userId
-        ORDER BY 
-          CASE WHEN :sortBy = 'title' AND :sortOrder = 'asc' THEN p.title END ASC,
-          CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
-          CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
-          CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC NULLS LAST,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC NULLS LAST,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC NULLS LAST,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC NULLS LAST
-        OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
-    """, nativeQuery = true)
-    fun findIdsByUser(
-        @Param("userId") userId: String,
-        @Param("sortBy") sortBy: String,
-        @Param("sortOrder") sortOrder: String,
-        @Param("offset") offset: Int,
-        @Param("limit") limit: Int
-    ): List<UUID>
+
     
     @Query(value = """
         SELECT 
@@ -376,15 +286,15 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         JOIN team_members tm ON tm.team_id = t.id
         WHERE tm.user_id = :userId
         ORDER BY 
-          CASE WHEN :sortBy = 'title' AND :sortOrder = 'asc' THEN p.title END ASC,
-          CASE WHEN :sortBy = 'title' AND :sortOrder = 'desc' THEN p.title END DESC,
-          CASE WHEN :sortBy = 'status' AND :sortOrder = 'asc' THEN p.status END ASC,
-          CASE WHEN :sortBy = 'status' AND :sortOrder = 'desc' THEN p.status END DESC,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'asc' THEN p.created_at END ASC NULLS LAST,
-          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'desc' THEN p.created_at END DESC NULLS LAST,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'asc' THEN p.updated_at END ASC NULLS LAST,
-          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'desc' THEN p.updated_at END DESC NULLS LAST
-        OFFSET :offset ROWS FETCH FIRST :limit ROWS ONLY
+          CASE WHEN :sortBy = 'title' AND :sortOrder = 'ASC' THEN p.title END ASC,
+          CASE WHEN :sortBy = 'title' AND :sortOrder = 'DESC' THEN p.title END DESC,
+          CASE WHEN :sortBy = 'status' AND :sortOrder = 'ASC' THEN p.status END ASC,
+          CASE WHEN :sortBy = 'status' AND :sortOrder = 'DESC' THEN p.status END DESC,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'ASC' THEN p.created_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'createdAt' AND :sortOrder = 'DESC' THEN p.created_at END DESC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'ASC' THEN p.updated_at END ASC NULLS LAST,
+          CASE WHEN :sortBy = 'updatedAt' AND :sortOrder = 'DESC' THEN p.updated_at END DESC NULLS LAST
+        OFFSET :offset LIMIT :limit
     """, nativeQuery = true)
     fun findProjectsByUserNative(
         @Param("userId") userId: String,
@@ -403,75 +313,10 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     """, nativeQuery = true)
     fun countByUser(@Param("userId") userId: String): Int
     
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        LEFT JOIN FETCH c.students
-        LEFT JOIN FETCH c.instructors
-        LEFT JOIN FETCH p.reviews
-        WHERE p.team = :team
-    """)
-    fun findByTeamWithRelations(@Param("team") team: Team, pageable: Pageable): Page<Project>
-    
-    @Query("""
-        SELECT DISTINCT p.id FROM Project p 
-        JOIN p.team t
-        JOIN t.members tm
-        WHERE t IN (SELECT team FROM Team team JOIN team.members member WHERE member = :user)
-        AND :course MEMBER OF p.courses
-    """)
-    fun findIdsByUserAndCourse(@Param("user") user: User, @Param("course") course: Course): List<UUID>
-    
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members tm
-        LEFT JOIN FETCH p.courses c
-        LEFT JOIN FETCH c.students
-        LEFT JOIN FETCH c.instructors
-        LEFT JOIN FETCH p.reviews
-        WHERE t IN (SELECT team FROM Team team JOIN team.members member WHERE member = :user)
-        AND :course MEMBER OF p.courses
-    """)
-    fun findProjectsByUserAndCourseWithRelations(@Param("user") user: User, @Param("course") course: Course): List<Project>
-    
-    @Query("""
-        SELECT DISTINCT p.id FROM Project p 
-        JOIN p.team t
-        WHERE t IN (SELECT team FROM Team team JOIN team.members member WHERE member = :user)
-    """)
-    fun findIdsByUser(@Param("user") user: User): List<UUID>
-    
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        LEFT JOIN FETCH c.students
-        LEFT JOIN FETCH c.instructors
-        LEFT JOIN FETCH p.reviews
-        WHERE t IN (SELECT team FROM Team team JOIN team.members member WHERE member = :user)
-    """)
-    fun findProjectsByUserWithRelations(@Param("user") user: User): List<Project>
-    
+
     @Query("SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p WHERE p.status = :status ORDER BY p.updatedAt DESC, p.title")
     fun findIdsByStatusOrderByUpdatedAtDesc(@Param("status") status: ProjectStatus, pageable: Pageable): Page<Array<Any>>
-    
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        LEFT JOIN FETCH c.students
-        LEFT JOIN FETCH c.instructors
-        LEFT JOIN FETCH p.reviews
-        WHERE p.status = :status
-        ORDER BY p.updatedAt DESC
-    """)
-    fun findByStatusWithRelationsOrderByUpdatedAtDesc(@Param("status") status: ProjectStatus, pageable: Pageable): Page<Project>
-    
+
     @Query("""
         SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
@@ -479,21 +324,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         ORDER BY p.updatedAt DESC
     """)
     fun findCompletedProjectIdsByFaculty(@Param("faculty") user: User, pageable: Pageable): Page<Array<Any>>
-    
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        LEFT JOIN FETCH c.students
-        LEFT JOIN FETCH c.instructors
-        LEFT JOIN FETCH p.reviews
-        WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
-        AND EXISTS (SELECT 1 FROM Course course JOIN course.instructors instructor WHERE instructor = :faculty AND course MEMBER OF p.courses)
-        ORDER BY p.updatedAt DESC
-    """)
-    fun findCompletedProjectsByFacultyWithRelations(@Param("faculty") faculty: User, pageable: Pageable): Page<Project>
-    
+
     @Query("""
         SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
@@ -501,21 +332,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         ORDER BY p.updatedAt DESC
     """)
     fun findCompletedProjectIdsByStudent(@Param("student") student: User, pageable: Pageable): Page<Array<Any>>
-    
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        LEFT JOIN FETCH c.students
-        LEFT JOIN FETCH c.instructors
-        LEFT JOIN FETCH p.reviews
-        WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
-        AND EXISTS (SELECT 1 FROM Team team JOIN team.members member WHERE member = :student AND team = p.team)
-        ORDER BY p.updatedAt DESC
-    """)
-    fun findCompletedProjectsByStudentWithRelations(@Param("student") student: User, pageable: Pageable): Page<Project>
-    
+
     @Query("""
         SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
@@ -523,21 +340,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
         ORDER BY p.updatedAt DESC
     """)
     fun searchCompletedProjectIds(@Param("query") query: String, pageable: Pageable): Page<Array<Any>>
-    
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        LEFT JOIN FETCH c.students
-        LEFT JOIN FETCH c.instructors
-        LEFT JOIN FETCH p.reviews
-        WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
-        AND LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%'))
-        ORDER BY p.updatedAt DESC
-    """)
-    fun searchCompletedProjectsWithRelations(@Param("query") query: String, pageable: Pageable): Page<Project>
-    
+
     @Query("""
         SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
@@ -547,21 +350,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     """)
     fun searchCompletedProjectIdsByFaculty(@Param("faculty") faculty: User, @Param("query") query: String, pageable: Pageable): Page<Array<Any>>
     
-    @Query("""
-        SELECT DISTINCT p FROM Project p 
-        LEFT JOIN FETCH p.team t
-        LEFT JOIN FETCH t.members
-        LEFT JOIN FETCH p.courses c
-        LEFT JOIN FETCH c.students
-        LEFT JOIN FETCH c.instructors
-        LEFT JOIN FETCH p.reviews
-        WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
-        AND LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%'))
-        AND EXISTS (SELECT 1 FROM Course course JOIN course.instructors instructor WHERE instructor = :faculty AND course MEMBER OF p.courses)
-        ORDER BY p.updatedAt DESC
-    """)
-    fun searchCompletedProjectsByFacultyWithRelations(@Param("faculty") faculty: User, @Param("query") query: String, pageable: Pageable): Page<Project>
-    
+
     @Query("""
         SELECT DISTINCT p.id, p.updatedAt, p.title FROM Project p 
         WHERE p.status = com.devlabs.devlabsbackend.project.domain.ProjectStatus.COMPLETED
@@ -573,16 +362,7 @@ interface ProjectRepository : JpaRepository<Project, UUID> {
     
     @Query("SELECT p FROM Project p JOIN p.team t JOIN t.members m WHERE m = :user AND p.status IN :statuses")
     fun findByTeamMembersContainingAndStatusIn(@Param("user") user: User, @Param("statuses") statuses: List<ProjectStatus>): List<Project>
-    
-    @Query("SELECT DISTINCT p FROM Project p JOIN p.courses c JOIN c.instructors i WHERE i.id = :facultyId")
-    fun findProjectsByFaculty(@Param("facultyId") facultyId: String): List<Project>
-    
-    @Query("SELECT DISTINCT p FROM Project p JOIN p.courses c WHERE c IN :courses")
-    fun findByCoursesIn(@Param("courses") courses: List<Course>): List<Project>
-    
-    @Query("SELECT COUNT(DISTINCT p.id) FROM Project p WHERE p.status IN :statuses")
-    fun countByStatusIn(@Param("statuses") statuses: List<ProjectStatus>): Long
-    
+
     @Query(value = """
         SELECT COUNT(DISTINCT p.id)
         FROM project p

@@ -69,7 +69,7 @@ fun Project.toProjectResponse(): ProjectResponse {
         teamMembers = this.team.members.map { it.toUserResponse() },
         courses = this.courses.map { course ->
             CourseInfo(
-                id = course.id!!,
+                id = course.id ?: throw IllegalArgumentException("Course ID cannot be null"),
                 name = course.name,
                 code = course.code
             )
@@ -85,6 +85,12 @@ fun createProjectResponse(
     teamMembers: List<UserResponse>,
     courses: List<CourseInfo>
 ): ProjectResponse {
+    require(projectData["id"] != null) { "Project ID is required" }
+    require(projectData["title"] != null) { "Project title is required" }
+    require(projectData["description"] != null) { "Project description is required" }
+    require(projectData["status"] != null) { "Project status is required" }
+    require(projectData["created_at"] != null) { "Created timestamp is required" }
+    require(projectData["updated_at"] != null) { "Updated timestamp is required" }
     return ProjectResponse(
         id = UUID.fromString(projectData["id"].toString()),
         title = projectData["title"].toString(),

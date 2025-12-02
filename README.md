@@ -45,6 +45,7 @@ docker-compose up -d
 ```
 
 This will start:
+
 - PostgreSQL database
 - Redis cache
 - MinIO object storage
@@ -106,18 +107,18 @@ The API will be available at `http://localhost:8090`
 
 Key environment variables (see `.env.example` for complete list):
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SPRING_PROFILES_ACTIVE` | Active Spring profile (dev/prod) | `dev` |
-| `POSTGRES_USER` | Database username | `devlabs_user` |
-| `POSTGRES_PASSWORD` | Database password | - |
-| `POSTGRES_DB` | Database name | `devlabs` |
-| `REDIS_PASSWORD` | Redis password | - |
-| `MINIO_ACCESS_KEY` | MinIO access key | `minioadmin` |
-| `MINIO_SECRET_KEY` | MinIO secret key | - |
-| `KEYCLOAK_ADMIN_USERNAME` | Keycloak admin username | `admin` |
-| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak admin password | - |
-| `JWT_ISSUER_URI` | Keycloak realm issuer URI | - |
+| Variable                  | Description                      | Default        |
+| ------------------------- | -------------------------------- | -------------- |
+| `SPRING_PROFILES_ACTIVE`  | Active Spring profile (dev/prod) | `dev`          |
+| `POSTGRES_USER`           | Database username                | `devlabs_user` |
+| `POSTGRES_PASSWORD`       | Database password                | -              |
+| `POSTGRES_DB`             | Database name                    | `devlabs`      |
+| `REDIS_PASSWORD`          | Redis password                   | -              |
+| `MINIO_ACCESS_KEY`        | MinIO access key                 | `minioadmin`   |
+| `MINIO_SECRET_KEY`        | MinIO secret key                 | -              |
+| `KEYCLOAK_ADMIN_USERNAME` | Keycloak admin username          | `admin`        |
+| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak admin password          | -              |
+| `JWT_ISSUER_URI`          | Keycloak realm issuer URI        | -              |
 
 ## API Documentation
 
@@ -229,37 +230,37 @@ For production environments requiring high availability and load balancing acros
 graph TB
     Client[Client Requests]
     Nginx[Nginx Load Balancer<br/>Port: 8090]
-    
+
     subgraph Backend Instances
         B1[Backend Instance 1<br/>Internal: 8090]
         B2[Backend Instance 2<br/>Internal: 8090]
         B3[Backend Instance 3<br/>Internal: 8090]
     end
-    
+
     subgraph Shared Services
         PG[(PostgreSQL<br/>Database)]
         Redis[(Redis<br/>Cache)]
         Minio[MinIO<br/>Storage]
         KC[Keycloak<br/>Auth]
     end
-    
+
     Client --> Nginx
     Nginx -->|Round Robin| B1
     Nginx -->|Round Robin| B2
     Nginx -->|Round Robin| B3
-    
+
     B1 --> PG
     B2 --> PG
     B3 --> PG
-    
+
     B1 --> Redis
     B2 --> Redis
     B3 --> Redis
-    
+
     B1 --> Minio
     B2 --> Minio
     B3 --> Minio
-    
+
     B1 --> KC
     B2 --> KC
     B3 --> KC
@@ -292,6 +293,7 @@ docker-compose -f docker-compose.prod.yml up -d
 ```
 
 This will start:
+
 - 3 backend instances (backend-1, backend-2, backend-3)
 - 1 Nginx load balancer (exposed on port 8090)
 - Shared PostgreSQL, Redis, MinIO, and Keycloak
@@ -317,16 +319,19 @@ Look for the `X-Upstream-Server` header to see which instance responded.
 #### 5. View logs
 
 All instances:
+
 ```bash
 docker-compose -f docker-compose.prod.yml logs -f
 ```
 
 Specific instance:
+
 ```bash
 docker-compose -f docker-compose.prod.yml logs -f backend-1
 ```
 
 Nginx logs:
+
 ```bash
 docker-compose -f docker-compose.prod.yml logs -f nginx
 ```

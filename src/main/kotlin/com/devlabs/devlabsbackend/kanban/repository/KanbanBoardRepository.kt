@@ -1,6 +1,7 @@
 package com.devlabs.devlabsbackend.kanban.repository
 
 import com.devlabs.devlabsbackend.kanban.domain.KanbanBoard
+import com.devlabs.devlabsbackend.kanban.domain.KanbanTask
 import com.devlabs.devlabsbackend.project.domain.Project
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
@@ -25,7 +26,6 @@ interface KanbanBoardRepository : JpaRepository<KanbanBoard, UUID> {
         LEFT JOIN FETCH t.createdBy u 
         WHERE t.column.board = :board 
     """)
-    fun findTasksByBoard(@Param("board") board: KanbanBoard): List<com.devlabs.devlabsbackend.kanban.domain.KanbanTask>
-    
+
     fun findByProject(project: Project): KanbanBoard?
 }

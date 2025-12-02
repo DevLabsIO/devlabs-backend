@@ -66,10 +66,9 @@ class CriterionService(
 
         criterion.rubrics?.let { rubrics ->
             rubrics.criteria.remove(criterion)
+            rubricsRepository.save(rubrics)
         }
-
         criterion.rubrics = null
-        criterionRepository.save(criterion)
         criterionRepository.delete(criterion)
     }
 }

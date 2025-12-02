@@ -11,7 +11,6 @@ import com.devlabs.devlabsbackend.project.domain.dto.CreateProjectRequest
 import com.devlabs.devlabsbackend.project.domain.dto.CourseInfo
 import com.devlabs.devlabsbackend.project.domain.dto.ProjectResponse
 import com.devlabs.devlabsbackend.project.domain.dto.UpdateProjectRequest
-import com.devlabs.devlabsbackend.project.domain.dto.createProjectResponse
 import com.devlabs.devlabsbackend.project.domain.dto.toProjectResponse
 import com.devlabs.devlabsbackend.project.repository.ProjectRepository
 import com.devlabs.devlabsbackend.team.repository.TeamRepository
@@ -105,47 +104,7 @@ class ProjectService(
             )
         }
         
-        val projectIds = projectsData.map { UUID.fromString(it["id"].toString()) }
-        val teamIds = projectsData.mapNotNull { 
-            it["team_id"]?.let { id -> UUID.fromString(id.toString()) }
-        }.distinct()
-        
-        val teamMembersMap = if (teamIds.isNotEmpty()) {
-            projectRepository.findTeamMembersByTeamIds(teamIds)
-                .groupBy { UUID.fromString(it["team_id"].toString()) }
-        } else emptyMap()
-        
-        val coursesMap = projectRepository.findCoursesByProjectIds(projectIds)
-            .groupBy { UUID.fromString(it["project_id"].toString()) }
-        
-        val responses = projectsData.map { data ->
-            val projectId = UUID.fromString(data["id"].toString())
-            val teamId = data["team_id"]?.let { UUID.fromString(it.toString()) }
-            
-            createProjectResponse(
-                projectData = data,
-                teamMembers = teamId?.let { teamMembersMap[it]?.map { member ->
-                    UserResponse(
-                        id = member["id"].toString(),
-                        name = member["name"].toString(),
-                        email = member["email"].toString(),
-                        profileId = member["profile_id"]?.toString(),
-                        image = member["image"]?.toString(),
-                        role = member["role"].toString(),
-                        phoneNumber = member["phone_number"]?.toString(),
-                        isActive = member["is_active"] as Boolean,
-                        createdAt = member["created_at"] as Timestamp
-                    )
-                } } ?: emptyList(),
-                courses = coursesMap[projectId]?.map { course ->
-                    CourseInfo(
-                        id = UUID.fromString(course["id"].toString()),
-                        name = course["name"].toString(),
-                        code = course["code"].toString()
-                    )
-                } ?: emptyList()
-            )
-        }
+        val responses = mapProjectsDataToResponse(projectsData)
 
         return PaginatedResponse(
             data = responses,
@@ -202,57 +161,7 @@ class ProjectService(
             )
         }
         
-        val projectIds = projectsData.map { UUID.fromString(it["id"].toString()) }
-        val teamIds = projectsData.mapNotNull { 
-            it["team_id"]?.let { id -> UUID.fromString(id.toString()) }
-        }.distinct()
-        
-        val teamMembersMap = if (teamIds.isNotEmpty()) {
-            projectRepository.findTeamMembersByTeamIds(teamIds)
-                .groupBy { UUID.fromString(it["team_id"].toString()) }
-        } else emptyMap()
-        
-        val coursesMap = projectRepository.findCoursesByProjectIds(projectIds)
-            .groupBy { UUID.fromString(it["project_id"].toString()) }
-        
-        val responses = projectsData.map { data ->
-            val projectId = UUID.fromString(data["id"].toString())
-            val teamId = data["team_id"]?.let { UUID.fromString(it.toString()) }
-            
-            ProjectResponse(
-                id = projectId,
-                title = data["title"].toString(),
-                description = data["description"].toString(),
-                objectives = data["objectives"]?.toString(),
-                githubUrl = data["github_url"]?.toString(),
-                status = ProjectStatus.values()[(data["status"] as Number).toInt()],
-                teamId = teamId,
-                teamName = data["team_name"]?.toString(),
-                teamMembers = teamId?.let { teamMembersMap[it]?.map { member ->
-                    UserResponse(
-                        id = member["id"].toString(),
-                        name = member["name"].toString(),
-                        email = member["email"].toString(),
-                        profileId = member["profile_id"]?.toString(),
-                        image = member["image"]?.toString(),
-                        role = member["role"].toString(),
-                        phoneNumber = member["phone_number"]?.toString(),
-                        isActive = member["is_active"] as Boolean,
-                        createdAt = member["created_at"] as Timestamp
-                    )
-                } } ?: emptyList(),
-                courses = coursesMap[projectId]?.map { course ->
-                    CourseInfo(
-                        id = UUID.fromString(course["id"].toString()),
-                        name = course["name"].toString(),
-                        code = course["code"].toString()
-                    )
-                } ?: emptyList(),
-                reviewCount = (data["review_count"] as? Number)?.toInt() ?: 0,
-                createdAt = data["created_at"] as Timestamp,
-                updatedAt = data["updated_at"] as Timestamp
-            )
-        }
+        val responses = mapProjectsDataToResponse(projectsData)
 
         return PaginatedResponse(
             data = responses,
@@ -343,7 +252,6 @@ class ProjectService(
         val offset = page * size
         val projectsData = projectRepository.findProjectsByUserAndCourseNative(userId, courseId, sortBy, sortOrder, offset, size)
         val totalCount = projectRepository.countByUserAndCourse(userId, courseId)
-        val totalPages = (totalCount + size - 1) / size
         
         if (projectsData.isEmpty()) {
             return PaginatedResponse(
@@ -351,60 +259,20 @@ class ProjectService(
                 pagination = PaginationInfo(
                     current_page = page,
                     per_page = size,
-                    total_pages = totalPages,
-                    total_count = totalCount
+                    total_pages = 0,
+                    total_count = 0
                 )
             )
         }
         
-        val projectIds = projectsData.map { UUID.fromString(it["id"].toString()) }
-        val teamIds = projectsData.mapNotNull { 
-            it["team_id"]?.let { id -> UUID.fromString(id.toString()) }
-        }.distinct()
-        
-        val teamMembersMap = if (teamIds.isNotEmpty()) {
-            projectRepository.findTeamMembersByTeamIds(teamIds)
-                .groupBy { UUID.fromString(it["team_id"].toString()) }
-        } else emptyMap()
-        
-        val coursesMap = projectRepository.findCoursesByProjectIds(projectIds)
-            .groupBy { UUID.fromString(it["project_id"].toString()) }
-        
-        val responses = projectsData.map { data ->
-            val projectId = UUID.fromString(data["id"].toString())
-            val teamId = data["team_id"]?.let { UUID.fromString(it.toString()) }
-            
-            createProjectResponse(
-                projectData = data,
-                teamMembers = teamId?.let { teamMembersMap[it]?.map { member ->
-                    UserResponse(
-                        id = member["id"].toString(),
-                        name = member["name"].toString(),
-                        email = member["email"].toString(),
-                        profileId = member["profile_id"]?.toString(),
-                        image = member["image"]?.toString(),
-                        role = member["role"].toString(),
-                        phoneNumber = member["phone_number"]?.toString(),
-                        isActive = member["is_active"] as Boolean,
-                        createdAt = member["created_at"] as Timestamp
-                    )
-                } } ?: emptyList(),
-                courses = coursesMap[projectId]?.map { course ->
-                    CourseInfo(
-                        id = UUID.fromString(course["id"].toString()),
-                        name = course["name"].toString(),
-                        code = course["code"].toString()
-                    )
-                } ?: emptyList()
-            )
-        }
+        val responses = mapProjectsDataToResponse(projectsData)
 
         return PaginatedResponse(
             data = responses,
             pagination = PaginationInfo(
                 current_page = page,
                 per_page = size,
-                total_pages = totalPages,
+                total_pages = (totalCount + size - 1) / size,
                 total_count = totalCount
             )
         )
@@ -422,7 +290,6 @@ class ProjectService(
         val offset = page * size
         val projectsData = projectRepository.findProjectsByUserNative(userId, sortBy, sortOrder, offset, size)
         val totalCount = projectRepository.countByUser(userId)
-        val totalPages = (totalCount + size - 1) / size
         
         if (projectsData.isEmpty()) {
             return PaginatedResponse(
@@ -430,60 +297,20 @@ class ProjectService(
                 pagination = PaginationInfo(
                     current_page = page,
                     per_page = size,
-                    total_pages = totalPages,
-                    total_count = totalCount
+                    total_pages = 0,
+                    total_count = 0
                 )
             )
         }
         
-        val projectIds = projectsData.map { UUID.fromString(it["id"].toString()) }
-        val teamIds = projectsData.mapNotNull { 
-            it["team_id"]?.let { id -> UUID.fromString(id.toString()) }
-        }.distinct()
-        
-        val teamMembersMap = if (teamIds.isNotEmpty()) {
-            projectRepository.findTeamMembersByTeamIds(teamIds)
-                .groupBy { UUID.fromString(it["team_id"].toString()) }
-        } else emptyMap()
-        
-        val coursesMap = projectRepository.findCoursesByProjectIds(projectIds)
-            .groupBy { UUID.fromString(it["project_id"].toString()) }
-        
-        val responses = projectsData.map { data ->
-            val projectId = UUID.fromString(data["id"].toString())
-            val teamId = data["team_id"]?.let { UUID.fromString(it.toString()) }
-            
-            createProjectResponse(
-                projectData = data,
-                teamMembers = teamId?.let { teamMembersMap[it]?.map { member ->
-                    UserResponse(
-                        id = member["id"].toString(),
-                        name = member["name"].toString(),
-                        email = member["email"].toString(),
-                        profileId = member["profile_id"]?.toString(),
-                        image = member["image"]?.toString(),
-                        role = member["role"].toString(),
-                        phoneNumber = member["phone_number"]?.toString(),
-                        isActive = member["is_active"] as Boolean,
-                        createdAt = member["created_at"] as Timestamp
-                    )
-                } } ?: emptyList(),
-                courses = coursesMap[projectId]?.map { course ->
-                    CourseInfo(
-                        id = UUID.fromString(course["id"].toString()),
-                        name = course["name"].toString(),
-                        code = course["code"].toString()
-                    )
-                } ?: emptyList()
-            )
-        }
+        val responses = mapProjectsDataToResponse(projectsData)
 
         return PaginatedResponse(
             data = responses,
             pagination = PaginationInfo(
                 current_page = page,
                 per_page = size,
-                total_pages = totalPages,
+                total_pages = (totalCount + size - 1) / size,
                 total_count = totalCount
             )
         )
@@ -655,10 +482,5 @@ class ProjectService(
                 updatedAt = data["updated_at"] as Timestamp
             )
         }
-    }
-    
-    private fun createSort(sortBy: String, sortOrder: String): Sort {
-        val direction = if (sortOrder.lowercase() == "desc") Sort.Direction.DESC else Sort.Direction.ASC
-        return Sort.by(direction, sortBy)
     }
 }

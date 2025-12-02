@@ -27,7 +27,6 @@ class EvaluationDraftService(
     private val reviewRepository: ReviewRepository,
     private val projectRepository: ProjectRepository,
     private val courseRepository: CourseRepository,
-    private val individualScoreRepository: IndividualScoreRepository,
     private val cacheManager: CacheManager
 ) {
 
@@ -107,23 +106,5 @@ class EvaluationDraftService(
             }
             else -> throw ForbiddenException("Only faculty, admin, or manager can access evaluation drafts")
         }
-    }
-
-    private fun checkIfEvaluationSubmitted(reviewId: UUID, projectId: UUID, courseId: UUID, evaluatorId: String): Boolean {
-        val review = reviewRepository.findById(reviewId).orElseThrow {
-            NotFoundException("Review with id $reviewId not found")
-        }
-        val project = projectRepository.findById(projectId).orElseThrow {
-            NotFoundException("Project with id $projectId not found")
-        }
-        val course = courseRepository.findById(courseId).orElseThrow {
-            NotFoundException("Course with id $courseId not found")
-        }
-
-        val expectedScoreCount = project.team.members.size * (review.rubrics?.criteria?.size ?: 0)
-        
-        val existingScores = individualScoreRepository.findByReviewAndProjectAndCourse(review, project, course)
-        
-        return existingScores.size == expectedScoreCount && existingScores.isNotEmpty()
     }
 }

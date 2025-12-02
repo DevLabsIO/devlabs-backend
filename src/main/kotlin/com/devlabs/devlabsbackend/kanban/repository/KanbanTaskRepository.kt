@@ -1,5 +1,6 @@
 package com.devlabs.devlabsbackend.kanban.repository
 
+import com.devlabs.devlabsbackend.kanban.domain.KanbanBoard
 import com.devlabs.devlabsbackend.kanban.domain.KanbanColumn
 import com.devlabs.devlabsbackend.kanban.domain.KanbanTask
 import org.springframework.data.jpa.repository.JpaRepository
@@ -27,4 +28,7 @@ interface   KanbanTaskRepository : JpaRepository<KanbanTask, UUID> {
         WHERE t.id = :taskId
     """)
     fun findByIdWithRelations(@Param("taskId") taskId: UUID): KanbanTask?
+
+    fun findByColumn_Board(board: KanbanBoard): List<KanbanTask>
+    
 }

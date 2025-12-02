@@ -37,8 +37,6 @@ class CourseService(
     private val individualScoreRepository: IndividualScoreRepository,
     private val reviewPublicationHelper: ReviewPublicationHelper
 ) {
-    
-    private val logger = LoggerFactory.getLogger(CourseService::class.java)
 
     @Cacheable(value = [CacheConfig.COURSE_DETAIL_CACHE], key = "#courseId")
     @Transactional(readOnly = true)
@@ -617,7 +615,12 @@ class CourseService(
             image = data["image"]?.toString(),
             role = data["role"].toString(),
             phoneNumber = data["phone_number"]?.toString(),
-            isActive = data["is_active"] as? Boolean ?: true,
+            isActive = when (val value = data["is_active"]) {
+                is Boolean -> value
+                is Int -> value != 0
+                is String -> value.toBoolean()
+                else -> true
+            },
             createdAt = data["created_at"] as? Timestamp ?: Timestamp(System.currentTimeMillis())
         )
     }
@@ -626,7 +629,13 @@ class CourseService(
         return BatchResponse(
             id = UUID.fromString(data["id"].toString()),
             name = data["name"].toString(),
-            joinYear = Year.of((data["join_year"] as Number).toInt()),
+            joinYear = Year.of(
+                when (val value = data["join_year"]) {
+                    is Number -> value.toInt()
+                    is String -> value.toIntOrNull() ?: Year.now().value
+                    else -> Year.now().value
+                }
+            ),
             section = data["section"].toString(),
             isActive = true,
             department = null

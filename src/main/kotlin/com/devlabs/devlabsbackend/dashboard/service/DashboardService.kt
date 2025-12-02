@@ -36,8 +36,6 @@ class DashboardService(
     private val individualScoreRepository: IndividualScoreRepository,
     private val reviewPublicationHelper: ReviewPublicationHelper
 ) {
-    private val logger = LoggerFactory.getLogger(DashboardService::class.java)
-
     @Cacheable(cacheNames = [CacheConfig.DASHBOARD_ADMIN], key = "'admin'")
     fun getAdminDashboard(): AdminDashboardResponse {
         val totalUsers = userRepository.count()
@@ -67,18 +65,29 @@ class DashboardService(
 
     @Cacheable(cacheNames = [CacheConfig.DASHBOARD_MANAGER], key = "#userId")
     fun getManagerStaffDashboard(userId: String): ManagerStaffDashboardResponse {
-        userRepository.findById(userId).orElseThrow { 
+        val user = userRepository.findById(userId).orElseThrow { 
             NotFoundException("User with id $userId not found") 
         }
         
         val today = LocalDate.now()
         
-        val reviewStats = reviewRepository.getReviewStatsForActiveSemesters(today)
+        // Use role-specific queries for faculty, general queries for manager
+        val reviewStats: Map<String, Any>
+        val upcomingReviewsData: List<Map<String, Any>>
+        
+        if (user.role == Role.FACULTY) {
+            reviewStats = reviewRepository.getReviewStatsForFaculty(userId, today)
+            upcomingReviewsData = reviewRepository.findUpcomingReviewsForFaculty(userId, today)
+        } else {
+            // Manager/Admin see all reviews in active semesters
+            reviewStats = reviewRepository.getReviewStatsForActiveSemesters(today)
+            upcomingReviewsData = reviewRepository.findUpcomingReviewsForActiveSemesters(today)
+        }
+        
         val totalReviews = (reviewStats["total_count"] as? Number)?.toInt() ?: 0
         val activeReviews = (reviewStats["active_count"] as? Number)?.toInt() ?: 0
         val completedReviews = (reviewStats["completed_count"] as? Number)?.toInt() ?: 0
         
-        val upcomingReviewsData = reviewRepository.findUpcomingReviewsForActiveSemesters(today)
         val upcomingReviews = upcomingReviewsData.map { row ->
             ReviewSummaryResponse(
                 id = UUID.fromString(row["id"].toString()),
@@ -124,52 +133,28 @@ class DashboardService(
         
         val today = LocalDate.now()
         
+        // Use the comprehensive student review stats query
+        val reviewStats = reviewRepository.getReviewStatsForStudent(userId, today)
+        val totalReviews = (reviewStats["total_count"] as? Number)?.toInt() ?: 0
+        val activeReviews = (reviewStats["active_count"] as? Number)?.toInt() ?: 0
+        val completedReviews = (reviewStats["completed_count"] as? Number)?.toInt() ?: 0
+        
+        // Get upcoming reviews using the comprehensive query
+        val upcomingReviewsData = reviewRepository.findUpcomingReviewsForStudent(userId, today)
+        val upcomingReviews = upcomingReviewsData.map { row ->
+            ReviewSummaryResponse(
+                id = UUID.fromString(row["id"].toString()),
+                name = row["name"].toString(),
+                startDate = (row["start_date"] as java.sql.Date).toLocalDate(),
+                endDate = (row["end_date"] as java.sql.Date).toLocalDate(),
+                courseName = "N/A"
+            )
+        }
+        
+        // Get courses for recently published reviews (keep existing logic for publications)
         val enrolledCourses = courseRepository.findCoursesByActiveSemestersAndStudent(student)
         val batchCourses = courseRepository.findCoursesByActiveSemestersAndStudentThroughBatch(student)
         val allCourses = (enrolledCourses + batchCourses).distinctBy { it.id }
-        
-        val allReviewData = if (allCourses.isNotEmpty()) {
-            val publishedReviews = reviewCoursePublicationRepository.findReviewsByCourses(allCourses)
-            val publishedReviewIds = publishedReviews.map { it.review.id!! }.distinct()
-            
-            if (publishedReviewIds.isNotEmpty()) {
-                reviewRepository.findReviewDataByIds(publishedReviewIds)
-            } else {
-                emptyList()
-            }
-        } else {
-            emptyList()
-        }
-        
-        val totalReviews = allReviewData.size
-        val activeReviews = allReviewData.count { reviewMap ->
-            val startDate = (reviewMap["start_date"] as java.sql.Date).toLocalDate()
-            val endDate = (reviewMap["end_date"] as java.sql.Date).toLocalDate()
-            !today.isBefore(startDate) && !today.isAfter(endDate)
-        }
-        val completedReviews = allReviewData.count { reviewMap ->
-            val endDate = (reviewMap["end_date"] as java.sql.Date).toLocalDate()
-            today.isAfter(endDate)
-        }
-        
-        val upcomingReviews = allReviewData
-            .filter { reviewMap -> 
-                val startDate = (reviewMap["start_date"] as java.sql.Date).toLocalDate()
-                today.isBefore(startDate)
-            }
-            .sortedBy { (it["start_date"] as java.sql.Date).toLocalDate() }
-            .take(5)
-            .map { reviewMap ->
-                val reviewId = reviewMap["id"] as UUID
-                val courseName = allCourses.firstOrNull()?.name ?: "N/A"
-                ReviewSummaryResponse(
-                    id = reviewId,
-                    name = reviewMap["name"] as String,
-                    startDate = (reviewMap["start_date"] as java.sql.Date).toLocalDate(),
-                    endDate = (reviewMap["end_date"] as java.sql.Date).toLocalDate(),
-                    courseName = courseName
-                )
-            }
         
         val recentlyPublishedReviews = if (allCourses.isNotEmpty()) {
             reviewCoursePublicationRepository.findRecentPublicationsByCourses(allCourses)

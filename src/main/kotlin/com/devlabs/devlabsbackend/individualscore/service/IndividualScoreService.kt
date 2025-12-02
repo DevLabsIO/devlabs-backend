@@ -33,16 +33,13 @@ class IndividualScoreService(
     private val reviewRepository: ReviewRepository,
     private val projectRepository: ProjectRepository,
     private val userRepository: UserRepository,
-    private val criterionRepository: CriterionRepository,
     private val courseRepository: CourseRepository,
-    private val batchRepository: BatchRepository,
-    private val semesterRepository: SemesterRepository,
     private val reviewPublicationHelper: ReviewPublicationHelper
 ) {
 
     fun checkScoreAccessRights(userId: String, review: Review, project: Project, participantId: String? = null) {
         val user = userRepository.findById(userId).orElseThrow {
-            NotFoundException("User with id \$userId not found")
+            NotFoundException("User with id $userId not found")
         }
 
         if (user.role == Role.ADMIN || user.role == Role.MANAGER) {
@@ -85,16 +82,16 @@ class IndividualScoreService(
     )
     fun getCourseEvaluationData(reviewId: UUID, projectId: UUID, courseId: UUID, userId: String): CourseEvaluationData {
         val user = userRepository.findById(userId).orElseThrow {
-            NotFoundException("User with id \$userId not found")
+            NotFoundException("User with id $userId not found")
         }
 
         val review = reviewRepository.findByIdWithRubrics(reviewId)
-            ?: throw NotFoundException("Review with id \$reviewId not found")
+            ?: throw NotFoundException("Review with id $reviewId not found")
 
-        val project = projectRepository.findByIdWithRelations(projectId) ?: throw NotFoundException("Project with id \$projectId not found")
+        val project = projectRepository.findByIdWithRelations(projectId) ?: throw NotFoundException("Project with id $projectId not found")
 
         val course = courseRepository.findById(courseId).orElseThrow {
-            NotFoundException("Course with id \$courseId not found")
+            NotFoundException("Course with id $courseId not found")
         }
 
         if (!isProjectAssociatedWithReview(review, project)) {
@@ -174,15 +171,15 @@ class IndividualScoreService(
     )
     fun submitCourseScores(request: SubmitCourseScoreRequest, submitterId: String): List<IndividualScore> {
         val submitter = userRepository.findById(submitterId).orElseThrow {
-            NotFoundException("User with id \$submitterId not found")
+            NotFoundException("User with id $submitterId not found")
         }
 
         val review = reviewRepository.findByIdWithRubrics(request.reviewId)
-            ?: throw NotFoundException("Review with id \${request.reviewId} not found")
+            ?: throw NotFoundException("Review with id ${request.reviewId} not found")
 
-        val project = projectRepository.findByIdWithRelations(request.projectId) ?: throw NotFoundException("Project with id \${request.projectId} not found")
+        val project = projectRepository.findByIdWithRelations(request.projectId) ?: throw NotFoundException("Project with id ${request.projectId} not found")
         val course = courseRepository.findById(request.courseId).orElseThrow {
-            NotFoundException("Course with id \${request.courseId} not found")
+            NotFoundException("Course with id ${request.courseId} not found")
         }
 
         if (!isProjectAssociatedWithReview(review, project)) {
@@ -209,21 +206,21 @@ class IndividualScoreService(
 
         request.scores.forEach { participantScores ->
             val participant = userRepository.findById(participantScores.participantId).orElseThrow {
-                NotFoundException("Participant with id \${participantScores.participantId} not found")
+                NotFoundException("Participant with id ${participantScores.participantId} not found")
             }
 
             if (!project.team.members.contains(participant)) {
-                throw IllegalArgumentException("Participant \${participant.name} is not a member of this project team")
+                throw IllegalArgumentException("Participant ${participant.name} is not a member of this project team")
             }
 
             participantScores.criterionScores.forEach { criterionScore ->
                 val criterion = criteriaMap[criterionScore.criterionId] ?: throw NotFoundException(
-                    "Criterion with id \${criterionScore.criterionId} not found in review's rubrics"
+                    "Criterion with id ${criterionScore.criterionId} not found in review's rubrics"
                 )
 
                 if (criterionScore.score < 0 || criterionScore.score > criterion.maxScore) {
                     throw IllegalArgumentException(
-                        "Score for criterion \${criterion.name} must be between 0 and \${criterion.maxScore}"
+                        "Score for criterion ${criterion.name} must be between 0 and ${criterion.maxScore}"
                     )
                 }
 
@@ -265,9 +262,9 @@ class IndividualScoreService(
     )
     fun getProjectEvaluationSummary(reviewId: UUID, projectId: UUID): ProjectEvaluationSummary {
         val review = reviewRepository.findById(reviewId).orElseThrow {
-            NotFoundException("Review with id \$reviewId not found")
+            NotFoundException("Review with id $reviewId not found")
         }
-        val project = projectRepository.findByIdWithRelations(projectId) ?: throw NotFoundException("Project with id \$projectId not found")
+        val project = projectRepository.findByIdWithRelations(projectId) ?: throw NotFoundException("Project with id $projectId not found")
 
         if (!isProjectAssociatedWithReview(review, project)) {
             throw IllegalArgumentException("Project is not part of this review")
