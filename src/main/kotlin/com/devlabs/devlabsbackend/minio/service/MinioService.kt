@@ -9,7 +9,6 @@ import org.springframework.web.multipart.MultipartFile
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
-import java.util.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -25,22 +24,14 @@ class MinioService(
         "text/plain", "application/zip", "application/x-rar-compressed"
     )
 
-    fun uploadFile(file: MultipartFile, customName: String? = null, directoryPath: String? = null): String {
+    fun uploadFile(file: MultipartFile): String {
         if (!isValidFileType(file.contentType)) {
             throw IllegalArgumentException("File type not allowed: ${file.contentType}")
         }
 
-        val fileName = if (customName.isNullOrBlank()) {
-            UUID.randomUUID().toString() + "_" + file.originalFilename?.replace(" ", "_")
-        } else {
-            generateUniqueObjectName(customName, directoryPath)
-        }
-
-        val objectName = if (directoryPath.isNullOrBlank()) {
-            fileName
-        } else {
-            "${directoryPath.trim('/')}/$fileName"
-        }
+        val originalName = (file.originalFilename ?: "file").replace(" ", "_")
+        val timestamp = System.nanoTime()
+        val objectName = "${timestamp}_$originalName"
 
         minioClient.putObject(
             PutObjectArgs.builder()
@@ -54,35 +45,14 @@ class MinioService(
         return objectName
     }
 
-    private fun generateUniqueObjectName(customName: String, directoryPath: String? = null): String {
-        val sanitizedName = customName.replace(" ", "_")
-        
-        val fullPath = if (directoryPath.isNullOrBlank()) {
-            sanitizedName
+    fun getDisplayName(objectName: String): String {
+        val underscoreIndex = objectName.indexOf('_')
+        if (underscoreIndex == -1) return objectName
+        val prefix = objectName.substring(0, underscoreIndex)
+        return if (prefix.all { it.isDigit() }) {
+            objectName.substring(underscoreIndex + 1)
         } else {
-            "${directoryPath.trim('/')}/$sanitizedName"
-        }
-
-        val exists = objectExists(fullPath)
-
-        return if (exists) {
-            "$sanitizedName-${UUID.randomUUID()}"
-        } else {
-            sanitizedName
-        }
-    }
-
-    private fun objectExists(objectName: String): Boolean {
-        return try {
-            minioClient.statObject(
-                StatObjectArgs.builder()
-                    .bucket(bucketName)
-                    .`object`(objectName)
-                    .build()
-            )
-            true
-        } catch (e: Exception) {
-            false
+            objectName
         }
     }
 
@@ -120,13 +90,10 @@ class MinioService(
         )
     }
 
-    fun listFiles(directoryPath: String): List<Map<String, Any>> {
-        val prefix = if (directoryPath.isBlank()) "" else "${directoryPath.trim('/')}/"
-        
+    fun listFiles(): List<Map<String, Any>> {
         val objects = minioClient.listObjects(
             ListObjectsArgs.builder()
                 .bucket(bucketName)
-                .prefix(prefix)
                 .recursive(true)
                 .build()
         )
@@ -135,28 +102,23 @@ class MinioService(
             val result = item.get()
             mapOf(
                 "objectName" to result.objectName(),
+                "fileName" to getDisplayName(result.objectName()),
                 "size" to result.size(),
-                "lastModified" to result.lastModified().toString(),
-                "etag" to result.etag(),
-                "fileName" to result.objectName().substringAfterLast('/'),
-                "directory" to result.objectName().substringBeforeLast('/', "")
+                "lastModified" to result.lastModified().toString()
             )
         }.toList()
     }
 
-    fun downloadDirectoryAsZip(directoryPath: String): InputStream {
-        val prefix = if (directoryPath.isBlank()) "" else "${directoryPath.trim('/')}/"
-        
+    fun downloadAllAsZip(): InputStream {
         val objects = minioClient.listObjects(
             ListObjectsArgs.builder()
                 .bucket(bucketName)
-                .prefix(prefix)
                 .recursive(true)
                 .build()
         )
 
         val tempZipFile = java.io.File.createTempFile("minio-download", ".zip")
-        
+
         try {
             ZipOutputStream(FileOutputStream(tempZipFile)).use { zipOutputStream ->
                 objects.forEach { item ->
@@ -167,8 +129,7 @@ class MinioService(
                             .`object`(result.objectName())
                             .build()
                     ).use { objectStream ->
-                        val fileName = result.objectName().substringAfterLast('/')
-                        val zipEntry = ZipEntry(fileName)
+                        val zipEntry = ZipEntry(getDisplayName(result.objectName()))
                         zipOutputStream.putNextEntry(zipEntry)
                         objectStream.copyTo(zipOutputStream)
                         zipOutputStream.closeEntry()
@@ -193,24 +154,18 @@ class MinioService(
         }
     }
 
-    fun deleteDirectory(directoryPath: String): Int {
-        val prefix = if (directoryPath.isBlank()) "" else "${directoryPath.trim('/')}/"
-        
+    fun deleteAllFiles(): Int {
         val objects = minioClient.listObjects(
             ListObjectsArgs.builder()
                 .bucket(bucketName)
-                .prefix(prefix)
                 .recursive(true)
                 .build()
         )
 
         val objectNames = objects.map { it.get().objectName() }.toList()
-        
+
         if (objectNames.isNotEmpty()) {
-            val deleteObjects = objectNames.map { 
-                DeleteObject(it) 
-            }
-            
+            val deleteObjects = objectNames.map { DeleteObject(it) }
             minioClient.removeObjects(
                 RemoveObjectsArgs.builder()
                     .bucket(bucketName)
